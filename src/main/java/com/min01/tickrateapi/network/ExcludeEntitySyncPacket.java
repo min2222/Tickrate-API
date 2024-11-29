@@ -1,20 +1,27 @@
 package com.min01.tickrateapi.network;
 
 import java.util.UUID;
-import java.util.function.Supplier;
 
+import com.min01.tickrateapi.TickrateAPI;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-public class ExcludeEntitySyncPacket 
+public class ExcludeEntitySyncPacket implements CustomPacketPayload
 {
 	private final UUID uuid;
 	private final boolean isExclude;
 	private final boolean excludeSubEntities;
-	
-	public ExcludeEntitySyncPacket(UUID uuid, boolean isExclude, boolean excludeSubEntities) 
+
+	public static final CustomPacketPayload.Type<ExcludeEntitySyncPacket> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(TickrateAPI.MODID, "exclude_entity_sync"));
+	public static final StreamCodec<RegistryFriendlyByteBuf, ExcludeEntitySyncPacket> STREAM_CODEC = CustomPacketPayload.codec(ExcludeEntitySyncPacket::encode, ExcludeEntitySyncPacket::new);
+
+	public ExcludeEntitySyncPacket(UUID uuid, boolean isExclude, boolean excludeSubEntities)
 	{
 		this.uuid = uuid;
 		this.isExclude = isExclude;
@@ -34,30 +41,31 @@ public class ExcludeEntitySyncPacket
 		buf.writeBoolean(this.isExclude);
 		buf.writeBoolean(this.excludeSubEntities);
 	}
-	
-	public static class Handler 
+
+	public static void handle(ExcludeEntitySyncPacket message, IPayloadContext ctx)
 	{
-		public static boolean onMessage(ExcludeEntitySyncPacket message, Supplier<NetworkEvent.Context> ctx) 
+		ctx.enqueueWork(() ->
 		{
-			ctx.get().enqueueWork(() ->
+			if(message.isExclude)
 			{
-				if(message.isExclude)
+				if(!TickrateUtil.EXCLUDED_ENTITIES.containsKey(message.uuid))
 				{
-					if(!TickrateUtil.EXCLUDED_ENTITIES.containsKey(message.uuid))
-					{
-						TickrateUtil.EXCLUDED_ENTITIES.put(message.uuid, message.excludeSubEntities);
-					}
+					TickrateUtil.EXCLUDED_ENTITIES.put(message.uuid, message.excludeSubEntities);
 				}
-				else
+			}
+			else
+			{
+				if(TickrateUtil.EXCLUDED_ENTITIES.containsKey(message.uuid))
 				{
-					if(TickrateUtil.EXCLUDED_ENTITIES.containsKey(message.uuid))
-					{
-						TickrateUtil.EXCLUDED_ENTITIES.remove(message.uuid);
-					}
+					TickrateUtil.EXCLUDED_ENTITIES.remove(message.uuid);
 				}
-			});
-			ctx.get().setPacketHandled(true);
-			return true;
-		}
+			}
+		});
+	}
+
+	@Override
+	public Type<? extends CustomPacketPayload> type()
+	{
+		return TYPE;
 	}
 }

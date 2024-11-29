@@ -18,15 +18,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.common.EventBusSubscriber.Bus;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
-@Mod.EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.FORGE)
+@EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.GAME)
 public class TickrateUtil 
 {
 	private static final Map<UUID, CustomTimer> TIMER_MAP = new HashMap<>();
@@ -61,9 +61,9 @@ public class TickrateUtil
 		if(event.getItemStack().getItem() == Items.NETHERITE_SWORD)
 		{
 			Player player = event.getEntity();
-			boolean isStop = isDimensionTimeStopped(player.level.dimension());
+			boolean isStop = isDimensionTimeStopped(player.level().dimension());
 			boolean isExcluded = isExcluded(player);
-			stopOrUnstopTime(!isStop, player.level);
+			stopOrUnstopTime(!isStop, player.level());
 			excludeOrIncludeEntity(!isExcluded, player);
 		}
 	}
@@ -85,7 +85,7 @@ public class TickrateUtil
 	
 	public static boolean isEntityTimeStopped(Entity entity)
 	{
-		return !isExcluded(entity) && isDimensionTimeStopped(entity.level.dimension());
+		return !isExcluded(entity) && isDimensionTimeStopped(entity.level().dimension());
 	}
     
     public static boolean isExcluded(Entity entity)
@@ -142,7 +142,7 @@ public class TickrateUtil
 	//must call in only server side
 	public static void excludeOrIncludeEntity(boolean flag, Entity entity)
 	{
-		if(!entity.level.isClientSide)
+		if(!entity.level().isClientSide)
 		{
 			if(flag)
 			{
@@ -183,7 +183,7 @@ public class TickrateUtil
 	
     public static void setTickrate(Entity entity, float tickrate)
     {
-    	if(!entity.level.isClientSide)
+    	if(!entity.level().isClientSide)
     	{
     		TickrateNetwork.sendToAll(new TimerSyncPacket(entity.getUUID(), tickrate, false));
 			if(!hasTimer(entity))
@@ -203,7 +203,7 @@ public class TickrateUtil
     
     public static void resetTickrate(Entity entity)
     {
-    	if(!entity.level.isClientSide)
+    	if(!entity.level().isClientSide)
     	{
     		TickrateNetwork.sendToAll(new TimerSyncPacket(entity.getUUID(), 0, true));
     		if(hasTimer(entity))

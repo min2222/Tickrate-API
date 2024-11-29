@@ -1,21 +1,19 @@
 package com.min01.tickrateapi;
 
 import com.min01.tickrateapi.config.TimerConfig;
-import com.min01.tickrateapi.network.TickrateNetwork;
 
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig.Type;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig.Type;
 
 @Mod(TickrateAPI.MODID)
 public class TickrateAPI 
 {
 	public static final String MODID = "tickrateapi";
 	
-	public TickrateAPI() 
+	public TickrateAPI(IEventBus bus, ModContainer container) 
 	{
-		ModLoadingContext ctx = ModLoadingContext.get();
-		TickrateNetwork.registerMessages();
-		ctx.registerConfig(Type.COMMON, TimerConfig.CONFIG_SPEC, "tickrate-api.toml");
+		container.registerConfig(Type.COMMON, TimerConfig.CONFIG_SPEC, "tickrate-api.toml");
 	}
 }

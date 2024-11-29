@@ -2,33 +2,27 @@ package com.min01.tickrateapi.network;
 
 import com.min01.tickrateapi.TickrateAPI;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.simple.SimpleChannel;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+@EventBusSubscriber(modid = TickrateAPI.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class TickrateNetwork
 {
-	public static int ID;
-    private static final String PROTOCOL_VERSION = "1";
-    public static final SimpleChannel CHANNEL = 
-    		NetworkRegistry.newSimpleChannel(new ResourceLocation(TickrateAPI.MODID, "tickrateapi"), 
-    				() -> PROTOCOL_VERSION, PROTOCOL_VERSION::equals, PROTOCOL_VERSION::equals);
-	
-	public static void registerMessages()
+	@SubscribeEvent
+	public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event)
 	{
-		CHANNEL.registerMessage(ID++, TimerSyncPacket.class, TimerSyncPacket::encode, TimerSyncPacket::new, TimerSyncPacket.Handler::onMessage);
-		CHANNEL.registerMessage(ID++, TimeStopSyncPacket.class, TimeStopSyncPacket::encode, TimeStopSyncPacket::new, TimeStopSyncPacket.Handler::onMessage);
-		CHANNEL.registerMessage(ID++, ExcludeEntitySyncPacket.class, ExcludeEntitySyncPacket::encode, ExcludeEntitySyncPacket::new, ExcludeEntitySyncPacket.Handler::onMessage);
+		PayloadRegistrar registrar = event.registrar("1");
+		registrar.playToClient(TimerSyncPacket.TYPE, TimerSyncPacket.STREAM_CODEC, TimerSyncPacket::handle);
+		registrar.playToClient(TimeStopSyncPacket.TYPE, TimeStopSyncPacket.STREAM_CODEC, TimeStopSyncPacket::handle);
+		registrar.playToClient(ExcludeEntitySyncPacket.TYPE, ExcludeEntitySyncPacket.STREAM_CODEC, ExcludeEntitySyncPacket::handle);
 	}
-	
-    public static <MSG> void sendToAll(MSG message) 
-    {
-    	for(ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) 
-    	{
-    		CHANNEL.sendTo(message, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
-    	}
-    }
+
+	public static void sendToAll(CustomPacketPayload message)
+	{
+		PacketDistributor.sendToAllPlayers(message);
+	}
 }

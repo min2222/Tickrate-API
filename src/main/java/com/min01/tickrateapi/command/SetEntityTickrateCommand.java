@@ -33,7 +33,7 @@ public class SetEntityTickrateCommand
 		for(Entity entity : p_137815_) 
 		{
 			TickrateUtil.resetTickrate(entity);
-			p_137814_.sendSuccess(Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
+			p_137814_.sendSuccess(() -> Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
 		}
 		return p_137815_.size();
 	}
@@ -45,12 +45,12 @@ public class SetEntityTickrateCommand
 			if(tickRate == 20)
 			{
 				TickrateUtil.resetTickrate(entity);
-				p_137814_.sendSuccess(Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
+				p_137814_.sendSuccess(() -> Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
 			}
 			else
 			{
 				TickrateUtil.setTickrate(entity, tickRate);
-				p_137814_.sendSuccess(Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickRate), true);
+				p_137814_.sendSuccess(() -> Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickRate), true);
 			}
 		}
 		return p_137815_.size();
