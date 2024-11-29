@@ -7,6 +7,7 @@ public class CustomTimer
 	public float partialTick;
 	private long lastMs;
 	public float tickrate;
+	public boolean shouldChangeSubEntities = true;
 
 	public CustomTimer(float p_92523_, long p_92524_)
 	{

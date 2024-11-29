@@ -42,7 +42,7 @@ public class MixinMinecraft
 	{
 		if(flag && this.player != null)
 		{
-			if(TickrateUtil.isEntityTimeStopped(this.player))
+			if(TickrateUtil.isDimensionTimeStopped(this.player.level.dimension()))
 			{
 				int j = this.timer.advanceTime(Util.getMillis());
 				for(int k = 0; k < Math.min(10, j); ++k)
@@ -88,13 +88,13 @@ public class MixinMinecraft
 			{
 				return TickrateUtil.getClientTimer(this.player).advanceTime(p_92526_);
 			}
-			else if(!TickrateUtil.isEntityTimeStopped(this.player))
+			else if(TickrateUtil.isEntityTimeStopped(this.player))
 			{
-				return instance.advanceTime(p_92526_);
+				return TickrateUtil.STOP.advanceTime(p_92526_);
 			}
 			else
 			{
-				return TickrateUtil.STOP.advanceTime(p_92526_);
+				return instance.advanceTime(p_92526_);
 			}
 		}
 		else
@@ -112,13 +112,13 @@ public class MixinMinecraft
 			{
 				instance.render(this.pause ? this.pausePartialTick : TickrateUtil.getClientTimer(this.player).partialTick, crashreport, crashreportcategory);
 			}
-			else if(!TickrateUtil.isEntityTimeStopped(this.player))
+			else if(TickrateUtil.isEntityTimeStopped(this.player))
 			{
-				instance.render(f1, crashreport, crashreportcategory);
+				instance.render(TickrateUtil.STOP.partialTick, crashreport, crashreportcategory);
 			}
 			else
 			{
-				instance.render(TickrateUtil.STOP.partialTick, crashreport, crashreportcategory);
+				instance.render(f1, crashreport, crashreportcategory);
 			}
 		}
 		else
@@ -136,13 +136,13 @@ public class MixinMinecraft
 			{
 				ForgeEventFactory.onRenderTickStart(this.pause ? this.pausePartialTick : TickrateUtil.getClientTimer(this.player).partialTick);
 			}
-			else if(!TickrateUtil.isEntityTimeStopped(this.player))
+			else if(TickrateUtil.isEntityTimeStopped(this.player))
 			{
-				ForgeEventFactory.onRenderTickStart(timer);
+				ForgeEventFactory.onRenderTickStart(TickrateUtil.STOP.partialTick);
 			}
 			else
 			{
-				ForgeEventFactory.onRenderTickStart(TickrateUtil.STOP.partialTick);
+				ForgeEventFactory.onRenderTickStart(timer);
 			}
 		}
 		else
@@ -160,13 +160,13 @@ public class MixinMinecraft
 			{
 				ForgeEventFactory.onRenderTickEnd(this.pause ? this.pausePartialTick : TickrateUtil.getClientTimer(this.player).partialTick);
 			}
-			else if(!TickrateUtil.isEntityTimeStopped(this.player))
+			else if(TickrateUtil.isEntityTimeStopped(this.player))
 			{
-				ForgeEventFactory.onRenderTickEnd(timer);
+				ForgeEventFactory.onRenderTickEnd(TickrateUtil.STOP.partialTick);
 			}
 			else
 			{
-				ForgeEventFactory.onRenderTickEnd(TickrateUtil.STOP.partialTick);
+				ForgeEventFactory.onRenderTickEnd(timer);
 			}
 		}
 		else

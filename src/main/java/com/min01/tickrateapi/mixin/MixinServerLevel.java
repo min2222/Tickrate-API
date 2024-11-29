@@ -60,9 +60,12 @@ public abstract class MixinServerLevel extends Level
 		{
 			if(TickrateUtil.hasTimer(entity))
 			{
-				TickrateUtil.setTickrate(p_8837_, TickrateUtil.getTimer(entity).tickrate);
+				if(TickrateUtil.getTimer(entity).shouldChangeSubEntities)
+				{
+					TickrateUtil.setTickrate(p_8837_, TickrateUtil.getTimer(entity).tickrate);
+				}
 			}
-			if(TickrateUtil.isExcluded(entity))
+			if(TickrateUtil.isExcluded(entity) && TickrateUtil.shouldExcludeSubEntities(entity))
 			{
 				TickrateUtil.excludeEntity(p_8837_);
 			}
@@ -89,12 +92,12 @@ public abstract class MixinServerLevel extends Level
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
 	private void tickNonPassenger(Entity p_8648_, CallbackInfo ci) 
 	{
-		if(p_8648_ instanceof Player)
-			return;
 		if(TickrateUtil.isEntityTimeStopped(p_8648_))
 		{
 			ci.cancel();
 		}
+		if(p_8648_ instanceof Player)
+			return;
 		if(TickrateUtil.hasTimer(p_8648_))
 		{
 			ci.cancel();

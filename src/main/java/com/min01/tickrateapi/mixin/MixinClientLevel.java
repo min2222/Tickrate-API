@@ -41,12 +41,12 @@ public abstract class MixinClientLevel extends Level
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
 	private void tickNonPassenger(Entity p_104640_, CallbackInfo ci) 
 	{
-		if(p_104640_ instanceof Player)
-			return;
 		if(TickrateUtil.isEntityTimeStopped(p_104640_))
 		{
 			ci.cancel();
 		}
+		if(p_104640_ instanceof Player)
+			return;
 		if(TickrateUtil.hasClientTimer(p_104640_))
 		{
 			ci.cancel();

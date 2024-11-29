@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import com.min01.tickrateapi.TickrateAPI;
 import com.min01.tickrateapi.command.SetEntityTickrateCommand;
+import com.min01.tickrateapi.network.ExcludeEntitySyncPacket;
 import com.min01.tickrateapi.network.TickrateNetwork;
 import com.min01.tickrateapi.network.TimeStopSyncPacket;
 import com.min01.tickrateapi.network.TimerSyncPacket;
@@ -37,7 +38,7 @@ public class TickrateUtil
 	public static final Map<Integer, UUID> ENTITY_MAP2 = new HashMap<>();
 	
 	public static final List<ResourceKey<Level>> DIMENSIONS = new ArrayList<>();
-	public static final List<Entity> EXCLUDED_ENTITIES = new ArrayList<>();
+	public static final Map<UUID, Boolean> EXCLUDED_ENTITIES = new HashMap<>();
 	
 	public static final CustomTimer STOP = new CustomTimer(0.0F, 0);
 	
@@ -54,15 +55,16 @@ public class TickrateUtil
 	}
 	
 	//test purpose;
-	@SubscribeEvent
-	public static void PlayerRightClick(PlayerInteractEvent.RightClickItem event)
+	//@SubscribeEvent
+	public static void onPlayerRightClickItem(PlayerInteractEvent.RightClickItem event)
 	{
 		if(event.getItemStack().getItem() == Items.NETHERITE_SWORD)
 		{
 			Player player = event.getEntity();
 			boolean isStop = isDimensionTimeStopped(player.level.dimension());
+			boolean isExcluded = isExcluded(player);
 			stopOrUnstopTime(!isStop, player.level);
-			excludeEntity(player);
+			excludeOrIncludeEntity(!isExcluded, player);
 		}
 	}
 	
@@ -85,6 +87,16 @@ public class TickrateUtil
 	{
 		return !isExcluded(entity) && isDimensionTimeStopped(entity.level.dimension());
 	}
+    
+    public static boolean isExcluded(Entity entity)
+    {
+    	return EXCLUDED_ENTITIES.containsKey(entity.getUUID());
+    }
+    
+    public static boolean shouldExcludeSubEntities(Entity entity)
+    {
+    	return EXCLUDED_ENTITIES.get(entity.getUUID());
+    }
 	
 	public static void stopOrUnstopTime(boolean flag, Level level)
 	{
@@ -126,6 +138,48 @@ public class TickrateUtil
 		}
 		TickrateNetwork.sendToAll(new TimeStopSyncPacket(dimension, false));
 	}
+
+	//must call in only server side
+	public static void excludeOrIncludeEntity(boolean flag, Entity entity)
+	{
+		if(!entity.level.isClientSide)
+		{
+			if(flag)
+			{
+				excludeEntity(entity);
+			}
+			else
+			{
+				includeEntity(entity);
+			}
+		}
+	}
+
+	//must call in only server side
+    public static void includeEntity(Entity entity)
+    {
+		if(EXCLUDED_ENTITIES.containsKey(entity.getUUID()))
+		{
+			EXCLUDED_ENTITIES.remove(entity.getUUID());
+		}
+		TickrateNetwork.sendToAll(new ExcludeEntitySyncPacket(entity.getUUID(), false, false));
+    }
+
+	//must call in only server side
+    public static void excludeEntity(Entity entity)
+    {
+    	excludeEntity(entity, true);
+    }
+
+	//must call in only server side
+    public static void excludeEntity(Entity entity, boolean excludeSubEntities)
+    {
+		if(!EXCLUDED_ENTITIES.containsKey(entity.getUUID()))
+		{
+			EXCLUDED_ENTITIES.put(entity.getUUID(), excludeSubEntities);
+		}
+		TickrateNetwork.sendToAll(new ExcludeEntitySyncPacket(entity.getUUID(), true, excludeSubEntities));
+    }
 	
     public static void setTickrate(Entity entity, float tickrate)
     {
@@ -157,27 +211,6 @@ public class TickrateUtil
     			removeTimer(entity);
     		}
     	}
-    }
-    
-    public static void includeEntity(Entity entity)
-    {
-		if(EXCLUDED_ENTITIES.contains(entity))
-		{
-			EXCLUDED_ENTITIES.remove(entity);
-		}
-    }
-    
-    public static void excludeEntity(Entity entity)
-    {
-		if(!EXCLUDED_ENTITIES.contains(entity))
-		{
-			EXCLUDED_ENTITIES.add(entity);
-		}
-    }
-    
-    public static boolean isExcluded(Entity entity)
-    {
-    	return EXCLUDED_ENTITIES.contains(entity);
     }
     
     public static void removeTimer(Entity entity)
