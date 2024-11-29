@@ -4,7 +4,7 @@ import java.util.function.Supplier;
 
 import com.min01.tickrateapi.util.TickrateUtil;
 
-import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -23,7 +23,7 @@ public class TimeStopSyncPacket
 
 	public TimeStopSyncPacket(FriendlyByteBuf buf)
 	{
-		this.dimension = buf.readResourceKey(Registry.DIMENSION_REGISTRY);
+		this.dimension = buf.readResourceKey(Registries.DIMENSION);
 		this.isStop = buf.readBoolean();
 	}
 

@@ -55,7 +55,7 @@ public class TickrateUtil
 	}
 	
 	//test purpose;
-	//@SubscribeEvent
+	@SubscribeEvent
 	public static void onPlayerRightClickItem(PlayerInteractEvent.RightClickItem event)
 	{
 		if(event.getItemStack().getItem() == Items.NETHERITE_SWORD)
