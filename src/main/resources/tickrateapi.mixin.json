@@ -11,7 +11,8 @@
 		"MixinClientLevel",
 		"MixinLevelRenderer",
 		"MixinMinecraft",
-		"MixinParticleEngine"
+		"MixinParticleEngine",
+		"MixinTextureManager"
 	],
 	"server": [
 	],
