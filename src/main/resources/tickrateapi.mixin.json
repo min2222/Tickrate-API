@@ -12,7 +12,8 @@
 		"MixinDeltaTrackerTimer",
 		"MixinLevelRenderer",
 		"MixinParticleEngine",
-		"MixinMinecraft"
+		"MixinMinecraft",
+		"MixinTextureManager"
 	],
 	"server": [
 	],
