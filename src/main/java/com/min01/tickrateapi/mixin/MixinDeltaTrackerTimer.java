@@ -94,7 +94,6 @@ public class MixinDeltaTrackerTimer
 	@Unique
 	private float getGameTimeDeltaPartialTickCustom(boolean pRunsNormally, float partialTicks)
 	{
-		Minecraft minecraft = Minecraft.getInstance();
 		if(!pRunsNormally && this.frozen)
 		{
 			return 1.0F;

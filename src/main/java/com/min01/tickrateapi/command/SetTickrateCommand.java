@@ -12,7 +12,7 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 
-public class SetEntityTickrateCommand 
+public class SetTickrateCommand 
 {
 	public static void register(CommandDispatcher<CommandSourceStack> p_214446_)
 	{
@@ -24,35 +24,25 @@ public class SetEntityTickrateCommand
 			return setTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), FloatArgumentType.getFloat(p_137810_, "tickRate"));
 		}))).then(Commands.argument("targets", EntityArgument.entities()).executes((p_137810_) ->
 		{
-			return resetTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"));
+			return setTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), 20);
 		})));
 	}
 	
-	private static int resetTickrate(CommandSourceStack p_137814_, Collection<? extends Entity> p_137815_) 
+	private static int setTickrate(CommandSourceStack source, Collection<? extends Entity> entities, float tickRate) 
 	{
-		for(Entity entity : p_137815_) 
-		{
-			TickrateUtil.resetTickrate(entity);
-			p_137814_.sendSuccess(() -> Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
-		}
-		return p_137815_.size();
-	}
-	
-	private static int setTickrate(CommandSourceStack p_137814_, Collection<? extends Entity> p_137815_, float tickRate) 
-	{
-		for(Entity entity : p_137815_) 
+		for(Entity entity : entities) 
 		{
 			if(tickRate == 20)
 			{
 				TickrateUtil.resetTickrate(entity);
-				p_137814_.sendSuccess(() -> Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
+				source.sendSuccess(() -> Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
 			}
 			else
 			{
 				TickrateUtil.setTickrate(entity, tickRate);
-				p_137814_.sendSuccess(() -> Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickRate), true);
+				source.sendSuccess(() -> Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickRate), true);
 			}
 		}
-		return p_137815_.size();
+		return entities.size();
 	}
 }

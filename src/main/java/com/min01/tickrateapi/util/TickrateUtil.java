@@ -1,22 +1,18 @@
 package com.min01.tickrateapi.util;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import com.min01.tickrateapi.TickrateAPI;
-import com.min01.tickrateapi.command.SetEntityTickrateCommand;
-import com.min01.tickrateapi.network.ExcludeEntitySyncPacket;
+import com.min01.tickrateapi.command.SetTickrateCommand;
+import com.min01.tickrateapi.command.StopTickrateCommand;
 import com.min01.tickrateapi.network.TickrateNetwork;
-import com.min01.tickrateapi.network.TimeStopSyncPacket;
 import com.min01.tickrateapi.network.TimerSyncPacket;
+import com.min01.tickrateapi.world.TickrateSavedData;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -24,7 +20,6 @@ import net.neoforged.fml.common.EventBusSubscriber.Bus;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 @EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.GAME)
 public class TickrateUtil 
@@ -34,18 +29,16 @@ public class TickrateUtil
 
 	public static final String TICKRATE = "Tickrate";
 	public static final String EXCLUDED = "Excluded";
-	public static final Map<Integer, UUID> ENTITY_MAP = new HashMap<>();
-	public static final Map<Integer, UUID> ENTITY_MAP2 = new HashMap<>();
-	
-	public static final List<ResourceKey<Level>> DIMENSIONS = new ArrayList<>();
-	public static final Map<UUID, Boolean> EXCLUDED_ENTITIES = new HashMap<>();
+	public static final Map<Integer, Entity> ENTITY_MAP = new HashMap<>();
+	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
 	
 	public static final CustomTimer STOP = new CustomTimer(0.0F, 0);
 	
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event)
     {
-    	SetEntityTickrateCommand.register(event.getDispatcher());
+    	SetTickrateCommand.register(event.getDispatcher());
+    	StopTickrateCommand.register(event.getDispatcher());
     }
     
 	@SubscribeEvent
@@ -54,33 +47,28 @@ public class TickrateUtil
 		TickrateUtil.resetTickrate(event.getEntity());
 	}
 	
-	//test purpose;
-	//@SubscribeEvent
-	public static void onPlayerRightClickItem(PlayerInteractEvent.RightClickItem event)
-	{
-		if(event.getItemStack().getItem() == Items.NETHERITE_SWORD)
-		{
-			Player player = event.getEntity();
-			boolean isStop = isDimensionTimeStopped(player.level().dimension());
-			boolean isExcluded = isExcluded(player);
-			stopOrUnstopTime(!isStop, player.level());
-			excludeOrIncludeEntity(!isExcluded, player);
-		}
-	}
-	
 	@SubscribeEvent
-	public static void onEntityJoin(EntityJoinLevelEvent event)
+	public static void onEntityJoinLevel(EntityJoinLevelEvent event)
 	{
-		ENTITY_MAP.put(event.getEntity().getClass().hashCode(), event.getEntity().getUUID());
-		for(Class<?> clazz : event.getEntity().getClass().getDeclaredClasses())
+		Level level = event.getLevel();
+		Entity entity = event.getEntity();
+		ENTITY_MAP.put(entity.getClass().hashCode(), entity);
+		ENTITY_MAP2.put(entity.getClass().getSuperclass().hashCode(), entity);
+		if(!level.isClientSide)
 		{
-			ENTITY_MAP2.put(clazz.hashCode(), event.getEntity().getUUID());
+    		stopOrUnstopTime(isDimensionTimeStopped(level.dimension()), level);
+    		excludeOrIncludeEntity(isExcluded(entity), entity);
 		}
 	}
 	
 	public static boolean isDimensionTimeStopped(ResourceKey<Level> dimension)
 	{
-		return DIMENSIONS.contains(dimension);
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		return data.getDimensions().contains(dimension);
+    	}
+		return false;
 	}
 	
 	public static boolean isEntityTimeStopped(Entity entity)
@@ -90,12 +78,22 @@ public class TickrateUtil
     
     public static boolean isExcluded(Entity entity)
     {
-    	return EXCLUDED_ENTITIES.containsKey(entity.getUUID());
+    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
+    	if(data != null)
+    	{
+    		return data.getExcludedEntities().containsKey(entity.getUUID());
+    	}
+    	return false;
     }
     
     public static boolean shouldExcludeSubEntities(Entity entity)
     {
-    	return EXCLUDED_ENTITIES.get(entity.getUUID());
+    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
+    	if(data != null)
+    	{
+    		return data.getExcludedEntities().get(entity.getUUID());
+    	}
+    	return false;
     }
 	
 	public static void stopOrUnstopTime(boolean flag, Level level)
@@ -122,21 +120,21 @@ public class TickrateUtil
 	//must call in only server side
 	public static void stopTime(ResourceKey<Level> dimension)
 	{
-		if(!DIMENSIONS.contains(dimension))
-		{
-			DIMENSIONS.add(dimension);
-		}
-		TickrateNetwork.sendToAll(new TimeStopSyncPacket(dimension, true));
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		data.stopDimension(dimension, true);
+    	}
 	}
 
 	//must call in only server side
 	public static void unstopTime(ResourceKey<Level> dimension)
 	{
-		if(DIMENSIONS.contains(dimension))
-		{
-			DIMENSIONS.remove(dimension);
-		}
-		TickrateNetwork.sendToAll(new TimeStopSyncPacket(dimension, false));
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		data.stopDimension(dimension, false);
+    	}
 	}
 
 	//must call in only server side
@@ -158,11 +156,11 @@ public class TickrateUtil
 	//must call in only server side
     public static void includeEntity(Entity entity)
     {
-		if(EXCLUDED_ENTITIES.containsKey(entity.getUUID()))
-		{
-			EXCLUDED_ENTITIES.remove(entity.getUUID());
-		}
-		TickrateNetwork.sendToAll(new ExcludeEntitySyncPacket(entity.getUUID(), false, false));
+    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
+    	if(data != null)
+    	{
+    		data.excludeEntities(entity, false, false);
+    	}
     }
 
 	//must call in only server side
@@ -174,11 +172,11 @@ public class TickrateUtil
 	//must call in only server side
     public static void excludeEntity(Entity entity, boolean excludeSubEntities)
     {
-		if(!EXCLUDED_ENTITIES.containsKey(entity.getUUID()))
-		{
-			EXCLUDED_ENTITIES.put(entity.getUUID(), excludeSubEntities);
-		}
-		TickrateNetwork.sendToAll(new ExcludeEntitySyncPacket(entity.getUUID(), true, excludeSubEntities));
+    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
+    	if(data != null)
+    	{
+    		data.excludeEntities(entity, true, excludeSubEntities);
+    	}
     }
 	
     public static void setTickrate(Entity entity, float tickrate)

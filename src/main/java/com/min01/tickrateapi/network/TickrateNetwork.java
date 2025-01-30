@@ -17,8 +17,6 @@ public class TickrateNetwork
 	{
 		PayloadRegistrar registrar = event.registrar("1");
 		registrar.playToClient(TimerSyncPacket.TYPE, TimerSyncPacket.STREAM_CODEC, TimerSyncPacket::handle);
-		registrar.playToClient(TimeStopSyncPacket.TYPE, TimeStopSyncPacket.STREAM_CODEC, TimeStopSyncPacket::handle);
-		registrar.playToClient(ExcludeEntitySyncPacket.TYPE, ExcludeEntitySyncPacket.STREAM_CODEC, ExcludeEntitySyncPacket::handle);
 	}
 
 	public static void sendToAll(CustomPacketPayload message)
