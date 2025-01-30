@@ -20,8 +20,6 @@ public class TickrateNetwork
 	public static void registerMessages()
 	{
 		CHANNEL.registerMessage(ID++, TimerSyncPacket.class, TimerSyncPacket::encode, TimerSyncPacket::new, TimerSyncPacket.Handler::onMessage);
-		CHANNEL.registerMessage(ID++, TimeStopSyncPacket.class, TimeStopSyncPacket::encode, TimeStopSyncPacket::new, TimeStopSyncPacket.Handler::onMessage);
-		CHANNEL.registerMessage(ID++, ExcludeEntitySyncPacket.class, ExcludeEntitySyncPacket::encode, ExcludeEntitySyncPacket::new, ExcludeEntitySyncPacket.Handler::onMessage);
 	}
 	
     public static <MSG> void sendToAll(MSG message) 
