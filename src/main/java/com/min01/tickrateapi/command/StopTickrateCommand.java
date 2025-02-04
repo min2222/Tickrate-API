@@ -32,7 +32,14 @@ public class StopTickrateCommand
 		{
 			TickrateUtil.stopOrUnstopTime(stop, player.level);
 			TickrateUtil.excludeOrIncludeEntity(stop, entity);
+		}
+		if(stop)
+		{
 			source.sendSuccess(() -> Component.literal("Stopped Tickrate of entire world in " + player.level.dimension().location().toString()), true);
+		}
+		else
+		{
+			source.sendSuccess(() -> Component.literal("Unstopped Tickrate of entire world in " + player.level.dimension().location().toString()), true);
 		}
 		return entities.size();
 	}
