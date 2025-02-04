@@ -124,12 +124,6 @@ public abstract class MixinServerLevel extends Level
 		}
 	}
 	
-	@Shadow
-	private void sendGameEvents() 
-	{
-		
-	}
-	
 	@Unique
 	private void tick(BooleanSupplier supplier)
 	{
