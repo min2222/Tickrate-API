@@ -1,8 +1,10 @@
 package com.min01.tickrateapi.mixin;
 
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -19,17 +21,41 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.entity.EntityTickList;
+import net.minecraft.world.level.entity.PersistentEntitySectionManager;
 import net.minecraft.world.level.storage.WritableLevelData;
+import net.neoforged.neoforge.entity.PartEntity;
 
 @Mixin(ServerLevel.class)
 public abstract class MixinServerLevel extends Level
 {
+	@Shadow
+	@Final
+	private List<ServerPlayer> players;
+	
+	@Shadow
+	private int emptyTime;
+	
+	@Shadow
+	@Final
+	private EntityTickList entityTickList;
+	
+	@Shadow
+	@Final
+	private ServerChunkCache chunkSource;
+	
+	@Shadow
+	@Final
+	private PersistentEntitySectionManager<Entity> entityManager;
+	
 	protected MixinServerLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_)
 	{
 		super(p_220352_, p_220353_, p_270200_, p_220354_, p_220355_, p_220356_, p_220357_, p_220358_, p_220359_);
@@ -91,12 +117,67 @@ public abstract class MixinServerLevel extends Level
 	}
 	
 	@Inject(at = @At("HEAD"), method = "tick", cancellable = true)
-	private void tick(BooleanSupplier p_8794_, CallbackInfo ci) 
+	private void tick(BooleanSupplier supplier, CallbackInfo ci) 
 	{
 		if(TickrateUtil.isDimensionTimeStopped(this.dimension()))
 		{
 			ci.cancel();
+			this.tick(supplier);
 		}
+	}
+	
+	@Unique
+	private void tick(BooleanSupplier supplier)
+	{
+		ProfilerFiller profilerfiller = this.getProfiler();
+		profilerfiller.popPush("chunkSource");
+		this.getChunkSource().tick(supplier, true);
+		boolean flag = !this.players.isEmpty() || net.neoforged.neoforge.common.world.chunk.ForcedChunkManager.hasForcedChunks(ServerLevel.class.cast(this));
+		if(flag || this.emptyTime++ < 300) 
+		{
+			profilerfiller.push("entities");
+			this.entityTickList.forEach((p_184065_) -> 
+			{
+				if(!p_184065_.isRemoved())
+				{
+					if(this.shouldDiscardEntity(p_184065_))
+					{
+						p_184065_.discard();
+					} 
+					else
+					{
+						profilerfiller.push("checkDespawn");
+						p_184065_.checkDespawn();
+						profilerfiller.pop();
+						if(this.chunkSource.chunkMap.getDistanceManager().inEntityTickingRange(p_184065_.chunkPosition().toLong()))
+						{
+							Entity entity = p_184065_.getVehicle();
+							if(entity != null)
+							{
+								if(!entity.isRemoved() && entity.hasPassenger(p_184065_)) 
+								{
+									return;
+								}
+
+								p_184065_.stopRiding();
+							}
+
+							profilerfiller.push("tick");
+							if(!p_184065_.isRemoved() && !(p_184065_ instanceof PartEntity))
+							{
+								this.guardEntityTick(this::tickNonPassenger, p_184065_);
+							}
+							profilerfiller.pop();
+						}
+					}
+				}
+			});
+			profilerfiller.pop();
+		}
+		
+		profilerfiller.push("entityManagement");
+		this.entityManager.tick();
+		profilerfiller.pop();
 	}
 	
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
@@ -137,6 +218,18 @@ public abstract class MixinServerLevel extends Level
 		{
 			this.tickPassenger(p_8648_, entity);
 		}
+	}
+	
+	@Shadow
+	private void tickNonPassenger(Entity p_8648_) 
+	{
+		
+	}
+	
+	@Shadow
+	private boolean shouldDiscardEntity(Entity p_143343_)
+	{
+		throw new IllegalStateException();
 	}
 	
 	@Shadow
