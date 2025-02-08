@@ -1,5 +1,8 @@
 package com.min01.tickrateapi.mixin;
 
+import java.util.Collection;
+import java.util.Iterator;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,6 +17,8 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(ParticleEngine.class)
 public class MixinParticleEngine
@@ -27,6 +32,28 @@ public class MixinParticleEngine
 		if(TickrateUtil.isDimensionTimeStopped(this.level.dimension()))
 		{
 			ci.cancel();
+		}
+	}
+	
+	@Inject(at = @At(value = "HEAD"), method = "tickParticleList", cancellable = true)
+	private void tickParticleList(Collection<Particle> particles, CallbackInfo ci)
+	{
+		if(!particles.isEmpty())
+		{
+			Iterator<Particle> iterator = particles.iterator();
+			while(iterator.hasNext())
+			{
+				Particle particle = iterator.next();
+				for(Iterator<AABB> itr = TickrateUtil.getTimeStopAreas(this.level.dimension()).iterator(); itr.hasNext();)
+				{
+					AABB aabb = itr.next();
+					Vec3 pos = new Vec3(particle.x, particle.y, particle.x);
+					if(aabb.contains(pos))
+					{
+						ci.cancel();
+					}
+				}
+			}
 		}
 	}
 	

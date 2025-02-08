@@ -19,7 +19,7 @@ public class TickrateNetwork
 	
 	public static void registerMessages()
 	{
-		CHANNEL.registerMessage(ID++, TimerSyncPacket.class, TimerSyncPacket::encode, TimerSyncPacket::new, TimerSyncPacket.Handler::onMessage);
+		CHANNEL.registerMessage(ID++, UpdateTickratePacket.class, UpdateTickratePacket::encode, UpdateTickratePacket::new, UpdateTickratePacket.Handler::onMessage);
 	}
 	
     public static <MSG> void sendToAll(MSG message) 

@@ -46,10 +46,10 @@ public class MixinLevelRenderer
 	    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
 	    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
 		}
-		if(TickrateUtil.hasClientTimer(p_109518_))
+		if(TickrateUtil.hasTimer(p_109518_))
 		{
 	    	ci.cancel();
-			CustomTimer timer = TickrateUtil.getClientTimer(p_109518_);
+			CustomTimer timer = TickrateUtil.getTimer(p_109518_);
 			float partialTick = timer.partialTick;
 			double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
 	    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
