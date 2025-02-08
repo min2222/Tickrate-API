@@ -16,7 +16,7 @@ public class TickrateNetwork
 	public static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event)
 	{
 		PayloadRegistrar registrar = event.registrar("1");
-		registrar.playToClient(TimerSyncPacket.TYPE, TimerSyncPacket.STREAM_CODEC, TimerSyncPacket::handle);
+		registrar.playToClient(UpdateTickratePacket.TYPE, UpdateTickratePacket.STREAM_CODEC, UpdateTickratePacket::handle);
 	}
 
 	public static void sendToAll(CustomPacketPayload message)

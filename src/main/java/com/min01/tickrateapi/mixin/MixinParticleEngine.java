@@ -1,5 +1,8 @@
 package com.min01.tickrateapi.mixin;
 
+import java.util.Collection;
+import java.util.Iterator;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,6 +17,9 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.fml.util.ObfuscationReflectionHelper;
 
 @Mixin(ParticleEngine.class)
 public class MixinParticleEngine
@@ -27,6 +33,31 @@ public class MixinParticleEngine
 		if(TickrateUtil.isDimensionTimeStopped(this.level.dimension()))
 		{
 			ci.cancel();
+		}
+	}
+	
+	@Inject(at = @At(value = "HEAD"), method = "tickParticleList", cancellable = true)
+	private void tickParticleList(Collection<Particle> particles, CallbackInfo ci)
+	{
+		if(!particles.isEmpty())
+		{
+			Iterator<Particle> iterator = particles.iterator();
+			while(iterator.hasNext())
+			{
+				Particle particle = iterator.next();
+				for(Iterator<AABB> itr = TickrateUtil.getTimeStopAreas(this.level.dimension()).iterator(); itr.hasNext();)
+				{
+					AABB aabb = itr.next();
+					double x = ObfuscationReflectionHelper.getPrivateValue(Particle.class, particle, "f_107212_");
+					double y = ObfuscationReflectionHelper.getPrivateValue(Particle.class, particle, "f_107213_");
+					double z = ObfuscationReflectionHelper.getPrivateValue(Particle.class, particle, "f_107214_");
+					Vec3 pos = new Vec3(x, y, z);
+					if(aabb.contains(pos))
+					{
+						ci.cancel();
+					}
+				}
+			}
 		}
 	}
 	

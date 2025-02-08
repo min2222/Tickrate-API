@@ -1,37 +1,39 @@
 package com.min01.tickrateapi.util;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import com.min01.tickrateapi.TickrateAPI;
+import com.min01.tickrateapi.capabilities.ITickrateCapability;
+import com.min01.tickrateapi.capabilities.TickrateCapabilities;
 import com.min01.tickrateapi.command.SetTickrateCommand;
 import com.min01.tickrateapi.command.StopTickrateCommand;
-import com.min01.tickrateapi.network.TickrateNetwork;
-import com.min01.tickrateapi.network.TimerSyncPacket;
 import com.min01.tickrateapi.world.TickrateSavedData;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.entity.LevelEntityGetter;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.EventBusSubscriber.Bus;
+import net.neoforged.fml.util.ObfuscationReflectionHelper;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 
 @EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.GAME)
 public class TickrateUtil 
 {
-	private static final Map<UUID, CustomTimer> TIMER_MAP = new HashMap<>();
-	private static final Map<UUID, CustomTimer> CLIENT_TIMER_MAP = new HashMap<>();
-
-	public static final String TICKRATE = "Tickrate";
-	public static final String EXCLUDED = "Excluded";
 	public static final Map<Integer, Entity> ENTITY_MAP = new HashMap<>();
 	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
-	
 	public static final CustomTimer STOP = new CustomTimer(0.0F, 0);
 	
     @SubscribeEvent
@@ -50,14 +52,23 @@ public class TickrateUtil
 	@SubscribeEvent
 	public static void onEntityJoinLevel(EntityJoinLevelEvent event)
 	{
-		Level level = event.getLevel();
 		Entity entity = event.getEntity();
 		ENTITY_MAP.put(entity.getClass().hashCode(), entity);
 		ENTITY_MAP2.put(entity.getClass().getSuperclass().hashCode(), entity);
-		if(!level.isClientSide)
+	}
+	
+	@SubscribeEvent
+	public static void onPlayerLoggedIn(PlayerLoggedInEvent event)
+	{
+		Level level = event.getEntity().level();
+		if(isExcluded(event.getEntity()))
 		{
-    		stopOrUnstopTime(isDimensionTimeStopped(level.dimension()), level);
-    		excludeOrIncludeEntity(isExcluded(entity), entity);
+			excludeEntity(event.getEntity(), shouldExcludeSubEntities(event.getEntity()));
+		}
+		for(Iterator<AABB> itr = getTimeStopAreas(level.dimension()).iterator(); itr.hasNext();)
+		{
+			AABB next = itr.next();
+			addTimeStopArea(level.dimension(), next);
 		}
 	}
 	
@@ -66,228 +77,137 @@ public class TickrateUtil
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		return data.getDimensions().contains(dimension);
+    		return data.isStopped();
     	}
 		return false;
 	}
 	
 	public static boolean isEntityTimeStopped(Entity entity)
 	{
+		for(Iterator<AABB> itr = TickrateUtil.getTimeStopAreas(entity.level().dimension()).iterator(); itr.hasNext();)
+		{
+			AABB aabb = itr.next();
+			if(aabb.contains(entity.position()))
+			{
+				return !isExcluded(entity);
+			}
+		}
 		return !isExcluded(entity) && isDimensionTimeStopped(entity.level().dimension());
 	}
     
     public static boolean isExcluded(Entity entity)
     {
-    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
-    	if(data != null)
-    	{
-    		return data.getExcludedEntities().containsKey(entity.getUUID());
-    	}
-    	return false;
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	return cap.isExcluded();
     }
     
     public static boolean shouldExcludeSubEntities(Entity entity)
     {
-    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	return cap.shouldExcludeSubEntities();
+    }
+    
+    public static List<AABB> getTimeStopAreas(ResourceKey<Level> dimension)
+    {
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		return data.getExcludedEntities().get(entity.getUUID());
+    		return data.getTimeStopAreas();
     	}
-    	return false;
+    	return new ArrayList<>();
     }
+    
+    public static void removeTimeStopArea(ResourceKey<Level> dimension, AABB aabb)
+    {
+       	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		data.removeTimeStopArea(aabb);
+    	}
+    }
+    
+	public static void addTimeStopArea(ResourceKey<Level> dimension, AABB aabb)
+	{
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		data.addTimeStopArea(aabb);
+    	}
+	}
 	
-	public static void stopOrUnstopTime(boolean flag, Level level)
-	{
-		if(!level.isClientSide)
-		{
-			stopOrUnstopTime(flag, level.dimension());
-		}
-	}
-
-	//must call in only server side
-	public static void stopOrUnstopTime(boolean flag, ResourceKey<Level> dimension)
-	{
-		if(flag)
-		{
-			stopTime(dimension);
-		}
-		else
-		{
-			unstopTime(dimension);
-		}
-	}
-
-	//must call in only server side
 	public static void stopTime(ResourceKey<Level> dimension)
 	{
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		data.stopDimension(dimension, true);
+    		data.stopTime();
     	}
 	}
 
-	//must call in only server side
 	public static void unstopTime(ResourceKey<Level> dimension)
 	{
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		data.stopDimension(dimension, false);
+    		data.unstopTime();
     	}
 	}
-
-	//must call in only server side
-	public static void excludeOrIncludeEntity(boolean flag, Entity entity)
-	{
-		if(!entity.level().isClientSide)
-		{
-			if(flag)
-			{
-				excludeEntity(entity);
-			}
-			else
-			{
-				includeEntity(entity);
-			}
-		}
-	}
-
-	//must call in only server side
+	
     public static void includeEntity(Entity entity)
     {
-    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
-    	if(data != null)
-    	{
-    		data.excludeEntities(entity, false, false);
-    	}
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	cap.exclude(false);
     }
 
-	//must call in only server side
     public static void excludeEntity(Entity entity)
     {
     	excludeEntity(entity, true);
     }
 
-	//must call in only server side
     public static void excludeEntity(Entity entity, boolean excludeSubEntities)
     {
-    	TickrateSavedData data = TickrateSavedData.get(entity.level().dimension());
-    	if(data != null)
-    	{
-    		data.excludeEntities(entity, true, excludeSubEntities);
-    	}
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	cap.exclude(true);
+    	cap.excludeSubEntities(excludeSubEntities);
     }
 	
     public static void setTickrate(Entity entity, float tickrate)
     {
-    	if(!entity.level().isClientSide)
-    	{
-    		TickrateNetwork.sendToAll(new TimerSyncPacket(entity.getUUID(), tickrate, false));
-			if(!hasTimer(entity))
-			{
-				setTimer(entity, tickrate);
-			}
-			else
-			{
-				CustomTimer timer = getTimer(entity);
-				if(timer.tickrate != tickrate)
-				{
-					setTimer(entity, tickrate);
-				}
-			}
-    	}
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	cap.setTimer(new CustomTimer(tickrate, 0));
     }
     
     public static void resetTickrate(Entity entity)
     {
-    	if(!entity.level().isClientSide)
-    	{
-    		TickrateNetwork.sendToAll(new TimerSyncPacket(entity.getUUID(), 0, true));
-    		if(hasTimer(entity))
-    		{
-    			removeTimer(entity);
-    		}
-    	}
-    }
-    
-    public static void removeTimer(Entity entity)
-    {
-    	removeTimer(entity.getUUID());
-    }
-    
-    public static void removeTimer(UUID uuid)
-    {
-		TIMER_MAP.remove(uuid);
-    }
-    
-    public static void removeClientTimer(Entity entity)
-    {
-    	removeClientTimer(entity.getUUID());
-    }
-    
-    public static void removeClientTimer(UUID uuid)
-    {
-		CLIENT_TIMER_MAP.remove(uuid);
-    }
-    
-    public static void setTimer(Entity entity, float tickrate)
-    {
-    	setTimer(entity.getUUID(), tickrate);
-    }
-    
-    public static void setTimer(UUID uuid, float tickrate)
-    {
-		TIMER_MAP.put(uuid, new CustomTimer(tickrate, 0));
-    }
-    
-    public static void setClientTimer(Entity entity, float tickrate)
-    {
-    	setClientTimer(entity.getUUID(), tickrate);
-    }
-    
-    public static void setClientTimer(UUID uuid, float tickrate)
-    {
-    	CLIENT_TIMER_MAP.put(uuid, new CustomTimer(tickrate, 0));
-    }
-    
-    public static CustomTimer getClientTimer(Entity entity)
-    {
-    	return getClientTimer(entity.getUUID());
-    }
-    
-    public static CustomTimer getClientTimer(UUID uuid)
-    {
-    	return CLIENT_TIMER_MAP.get(uuid);
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	cap.resetTickrate();
     }
     
     public static CustomTimer getTimer(Entity entity)
     {
-    	return getTimer(entity.getUUID());
-    }
-    
-    public static CustomTimer getTimer(UUID uuid)
-    {
-    	return TIMER_MAP.get(uuid);
-    }
-    
-    public static boolean hasClientTimer(Entity entity)
-    {
-    	return hasClientTimer(entity.getUUID());
-    }
-    
-    public static boolean hasClientTimer(UUID uuid)
-    {
-    	return CLIENT_TIMER_MAP.containsKey(uuid);
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	return cap.getTimer();
     }
     
     public static boolean hasTimer(Entity entity)
     {
-    	return hasTimer(entity.getUUID());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE);
+    	return cap.hasTimer();
     }
     
-    public static boolean hasTimer(UUID uuid)
-    {
-    	return TIMER_MAP.containsKey(uuid);
-    }
+	@SuppressWarnings("unchecked")
+	public static <T extends Entity> T getEntityByUUID(Level level, UUID uuid)
+	{
+		Method m = ObfuscationReflectionHelper.findMethod(Level.class, "m_142646_");
+		try 
+		{
+			LevelEntityGetter<Entity> entities = (LevelEntityGetter<Entity>) m.invoke(level);
+			return (T) entities.get(uuid);
+		}
+		catch (Exception e) 
+		{
+			e.printStackTrace();
+		}
+		return null;
+	}
 }

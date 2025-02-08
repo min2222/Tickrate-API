@@ -29,9 +29,9 @@ public class MixinDeltaTrackerTimer
 	private void getGameTimeDeltaTicks(CallbackInfoReturnable<Float> cir)
 	{
 		Minecraft minecraft = Minecraft.getInstance();
-		if(minecraft.player != null && TickrateUtil.hasClientTimer(minecraft.player))
+		if(minecraft.player != null && TickrateUtil.hasTimer(minecraft.player))
 		{
-			cir.setReturnValue(TickrateUtil.getClientTimer(minecraft.player).tickDelta);
+			cir.setReturnValue(TickrateUtil.getTimer(minecraft.player).tickDelta);
 		}
 		if(minecraft.player != null && TickrateUtil.isEntityTimeStopped(minecraft.player))
 		{
@@ -43,9 +43,9 @@ public class MixinDeltaTrackerTimer
 	private void advanceGameTime(long pTime, CallbackInfoReturnable<Integer> cir)
 	{
 		Minecraft minecraft = Minecraft.getInstance();
-		if(minecraft.player != null && TickrateUtil.hasClientTimer(minecraft.player))
+		if(minecraft.player != null && TickrateUtil.hasTimer(minecraft.player))
 		{
-			cir.setReturnValue(TickrateUtil.getClientTimer(minecraft.player).advanceTime(pTime));
+			cir.setReturnValue(TickrateUtil.getTimer(minecraft.player).advanceTime(pTime));
 		}
 		if(minecraft.player != null && TickrateUtil.isEntityTimeStopped(minecraft.player))
 		{
@@ -57,9 +57,9 @@ public class MixinDeltaTrackerTimer
 	private void getGameTimeDeltaPartialTick(boolean pRunsNormally, CallbackInfoReturnable<Float> cir)
 	{
 		Minecraft minecraft = Minecraft.getInstance();
-		if(minecraft.player != null && TickrateUtil.hasClientTimer(minecraft.player))
+		if(minecraft.player != null && TickrateUtil.hasTimer(minecraft.player))
 		{
-			cir.setReturnValue(this.getGameTimeDeltaPartialTickCustom(pRunsNormally, TickrateUtil.getClientTimer(minecraft.player).partialTick));
+			cir.setReturnValue(this.getGameTimeDeltaPartialTickCustom(pRunsNormally, TickrateUtil.getTimer(minecraft.player).partialTick));
 		}
 		if(minecraft.player != null && TickrateUtil.isEntityTimeStopped(minecraft.player))
 		{
@@ -71,12 +71,12 @@ public class MixinDeltaTrackerTimer
 	private void pause(CallbackInfo ci)
 	{
 		Minecraft minecraft = Minecraft.getInstance();
-		if(minecraft.player != null && TickrateUtil.hasClientTimer(minecraft.player))
+		if(minecraft.player != null && TickrateUtil.hasTimer(minecraft.player))
 		{
 			ci.cancel();
 			if(!this.paused)
 			{
-				this.pausedDeltaTickResidual = TickrateUtil.getClientTimer(minecraft.player).partialTick;
+				this.pausedDeltaTickResidual = TickrateUtil.getTimer(minecraft.player).partialTick;
 			}
 			this.paused = true;
 		}
