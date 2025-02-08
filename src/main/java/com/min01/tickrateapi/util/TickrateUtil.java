@@ -24,6 +24,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
@@ -52,10 +53,15 @@ public class TickrateUtil
 	@SubscribeEvent
 	public static void onEntityJoinLevel(EntityJoinLevelEvent event)
 	{
-		Level level = event.getLevel();
 		Entity entity = event.getEntity();
 		ENTITY_MAP.put(entity.getClass().hashCode(), entity);
 		ENTITY_MAP2.put(entity.getClass().getSuperclass().hashCode(), entity);
+	}
+	
+	@SubscribeEvent
+	public static void onPlayerLoggedIn(PlayerLoggedInEvent event)
+	{
+		Level level = event.getEntity().level;
 		if(isExcluded(event.getEntity()))
 		{
 			excludeEntity(event.getEntity(), shouldExcludeSubEntities(event.getEntity()));

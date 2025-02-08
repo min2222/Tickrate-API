@@ -8,9 +8,10 @@ import com.min01.tickrateapi.capabilities.TickrateCapabilities;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.util.TickrateUtil;
 
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.Entity;
+import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.network.NetworkEvent;
 
 public class UpdateTickratePacket 
@@ -50,19 +51,21 @@ public class UpdateTickratePacket
 			{
 				if(ctx.get().getDirection().getReceptionSide().isClient())
 				{
-					Minecraft mc = Minecraft.getInstance();
-					Entity entity = TickrateUtil.getEntityByUUID(mc.level, message.uuid);
-					ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
-					if(message.reset)
+					LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
 					{
-						cap.resetTickrate();
-					}
-					else
-					{
-						cap.setTimer(message.cap.getTimer());
-						cap.exclude(message.cap.isExcluded());
-						cap.excludeSubEntities(message.cap.shouldExcludeSubEntities());
-					}
+						Entity entity = TickrateUtil.getEntityByUUID(t, message.uuid);
+						ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+						if(message.reset)
+						{
+							cap.resetTickrate();
+						}
+						else
+						{
+							cap.setTimer(message.cap.getTimer());
+							cap.exclude(message.cap.isExcluded());
+							cap.excludeSubEntities(message.cap.shouldExcludeSubEntities());
+						}
+					});
 				}
 			});
 			ctx.get().setPacketHandled(true);

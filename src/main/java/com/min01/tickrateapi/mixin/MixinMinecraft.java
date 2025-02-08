@@ -42,7 +42,7 @@ public class MixinMinecraft
 	{
 		if(flag && this.player != null)
 		{
-			if(TickrateUtil.isDimensionTimeStopped(this.player.level.dimension()))
+			if(TickrateUtil.isEntityTimeStopped(this.player))
 			{
 				int j = this.timer.advanceTime(Util.getMillis());
 				for(int k = 0; k < Math.min(10, j); ++k)
