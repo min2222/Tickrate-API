@@ -47,11 +47,11 @@ public abstract class MixinClientLevel extends Level
 		}
 		if(p_104640_ instanceof Player)
 			return;
-		if(TickrateUtil.hasClientTimer(p_104640_))
+		if(TickrateUtil.hasTimer(p_104640_))
 		{
 			ci.cancel();
 			this.getProfiler().push("tickEntities");
-			int j = TickrateUtil.getClientTimer(p_104640_).advanceTime(Util.getMillis());
+			int j = TickrateUtil.getTimer(p_104640_).advanceTime(Util.getMillis());
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
 				this.getProfiler().incrementCounter("entityTick");

@@ -19,28 +19,28 @@ public class SetTickrateCommand
 		p_214446_.register(Commands.literal("setTickrate").requires((p_137777_) -> 
 		{
 			return p_137777_.hasPermission(2);
-		}).then(Commands.argument("targets", EntityArgument.entities()).then(Commands.argument("tickRate", FloatArgumentType.floatArg()).executes((p_137810_) ->
+		}).then(Commands.argument("targets", EntityArgument.entities()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes((p_137810_) ->
 		{
-			return setTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), FloatArgumentType.getFloat(p_137810_, "tickRate"));
+			return setTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), FloatArgumentType.getFloat(p_137810_, "tickrate"));
 		}))).then(Commands.argument("targets", EntityArgument.entities()).executes((p_137810_) ->
 		{
 			return setTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), 20);
 		})));
 	}
 	
-	private static int setTickrate(CommandSourceStack source, Collection<? extends Entity> entities, float tickRate) 
+	private static int setTickrate(CommandSourceStack source, Collection<? extends Entity> entities, float tickrate) 
 	{
 		for(Entity entity : entities) 
 		{
-			if(tickRate == 20)
+			if(tickrate == 20)
 			{
 				TickrateUtil.resetTickrate(entity);
 				source.sendSuccess(Component.literal("Reseted Tickrate of " + entity.getDisplayName().getString()), true);
 			}
 			else
 			{
-				TickrateUtil.setTickrate(entity, tickRate);
-				source.sendSuccess(Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickRate), true);
+				TickrateUtil.setTickrate(entity, tickrate);
+				source.sendSuccess(Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickrate), true);
 			}
 		}
 		return entities.size();
