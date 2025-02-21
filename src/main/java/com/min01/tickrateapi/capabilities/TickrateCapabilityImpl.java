@@ -5,7 +5,6 @@ import com.min01.tickrateapi.network.UpdateTickratePacket;
 import com.min01.tickrateapi.util.CustomTimer;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.network.PacketDistributor;
 
@@ -101,7 +100,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	
 	private void sendUpdatePacket(boolean reset) 
 	{
-		if(this.entity instanceof ServerPlayer)
+		if(!this.entity.level.isClientSide)
 		{
 			TickrateNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> this.entity), new UpdateTickratePacket(this.entity.getUUID(), this, reset));
 		}
