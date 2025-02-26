@@ -23,7 +23,6 @@ import net.minecraft.world.level.entity.LevelEntityGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -43,12 +42,6 @@ public class TickrateUtil
     	SetTickrateCommand.register(event.getDispatcher());
     	StopTickrateCommand.register(event.getDispatcher());
     }
-    
-	@SubscribeEvent
-	public static void onEntityLeaveLevel(EntityLeaveLevelEvent event)
-	{
-		TickrateUtil.resetTickrate(event.getEntity());
-	}
 	
 	@SubscribeEvent
 	public static void onEntityJoinLevel(EntityJoinLevelEvent event)
