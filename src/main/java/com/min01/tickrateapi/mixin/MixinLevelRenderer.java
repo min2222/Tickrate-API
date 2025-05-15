@@ -36,20 +36,21 @@ public class MixinLevelRenderer
     @Inject(at = @At("HEAD"), method = "renderEntity", cancellable = true)
     private void renderEntity(Entity p_109518_, double p_109519_, double p_109520_, double p_109521_, float p_109522_, PoseStack p_109523_, MultiBufferSource p_109524_, CallbackInfo ci)
     {
-		if(TickrateUtil.isEntityTimeStopped(p_109518_))
+		if(TickrateUtil.hasTimer(p_109518_))
 		{
 	    	ci.cancel();
-			float partialTick = TickrateUtil.STOP.partialTick;
+			CustomTimer timer = TickrateUtil.getTimer(p_109518_);
+			float partialTick = timer.partialTick;
 			double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
 	    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
 	    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
 	    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
 	    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
 		}
-		if(TickrateUtil.hasTimer(p_109518_))
+		else if(TickrateUtil.hasDimensionTimer(p_109518_.level.dimension()) && !TickrateUtil.isExcluded(p_109518_))
 		{
-	    	ci.cancel();
-			CustomTimer timer = TickrateUtil.getTimer(p_109518_);
+			ci.cancel();
+			CustomTimer timer = TickrateUtil.getDimensionTimer(p_109518_.level.dimension());
 			float partialTick = timer.partialTick;
 			double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
 	    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());

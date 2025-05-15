@@ -8,12 +8,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import com.min01.tickrateapi.TickrateAPI;
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
 import com.min01.tickrateapi.capabilities.TickrateCapabilities;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.command.SetTickrateCommand;
-import com.min01.tickrateapi.command.StopTickrateCommand;
+import com.min01.tickrateapi.network.TickrateNetwork;
+import com.min01.tickrateapi.network.UpdateAreaTickratePacket;
+import com.min01.tickrateapi.network.UpdateDimensionTickratePacket;
 import com.min01.tickrateapi.world.TickrateSavedData;
 
 import net.minecraft.resources.ResourceKey;
@@ -23,7 +27,6 @@ import net.minecraft.world.level.entity.LevelEntityGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
@@ -34,13 +37,13 @@ public class TickrateUtil
 {
 	public static final Map<Integer, Entity> ENTITY_MAP = new HashMap<>();
 	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
-	public static final CustomTimer STOP = new CustomTimer(0.0F, 0);
+	public static final Map<ResourceKey<Level>, CustomTimer> LEVEL_MAP = new HashMap<>();
+	public static final List<Pair<AABB, CustomTimer>> AABB_LIST = new ArrayList<>();
 	
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event)
     {
     	SetTickrateCommand.register(event.getDispatcher());
-    	StopTickrateCommand.register(event.getDispatcher());
     }
 	
 	@SubscribeEvent
@@ -51,42 +54,24 @@ public class TickrateUtil
 		ENTITY_MAP2.put(entity.getClass().getSuperclass().hashCode(), entity);
 	}
 	
-	@SubscribeEvent
-	public static void onPlayerLoggedIn(PlayerLoggedInEvent event)
-	{
-		Level level = event.getEntity().level;
-		if(isExcluded(event.getEntity()))
-		{
-			excludeEntity(event.getEntity(), shouldExcludeSubEntities(event.getEntity()));
-		}
-		for(Iterator<AABB> itr = getTimeStopAreas(level.dimension()).iterator(); itr.hasNext();)
-		{
-			AABB next = itr.next();
-			addTimeStopArea(level.dimension(), next);
-		}
-	}
-	
-	public static boolean isDimensionTimeStopped(ResourceKey<Level> dimension)
+	public static boolean hasDimensionTimer(ResourceKey<Level> dimension)
 	{
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		return data.isStopped();
+    		return data.getTimer().tickrate != 20.0F;
     	}
-		return false;
+		return LEVEL_MAP.containsKey(dimension) && LEVEL_MAP.get(dimension).tickrate != 20.0F;
 	}
 	
-	public static boolean isEntityTimeStopped(Entity entity)
+	public static CustomTimer getDimensionTimer(ResourceKey<Level> dimension)
 	{
-		for(Iterator<AABB> itr = TickrateUtil.getTimeStopAreas(entity.level.dimension()).iterator(); itr.hasNext();)
-		{
-			AABB aabb = itr.next();
-			if(aabb.contains(entity.position()))
-			{
-				return !isExcluded(entity);
-			}
-		}
-		return !isExcluded(entity) && isDimensionTimeStopped(entity.level.dimension());
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		return data.getTimer();
+    	}
+		return LEVEL_MAP.get(dimension);
 	}
     
     public static boolean isExcluded(Entity entity)
@@ -101,49 +86,33 @@ public class TickrateUtil
     	return cap.shouldExcludeSubEntities();
     }
     
-    public static List<AABB> getTimeStopAreas(ResourceKey<Level> dimension)
+    public static List<Pair<AABB, CustomTimer>> getTickrateAreas(ResourceKey<Level> dimension)
     {
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		return data.getTimeStopAreas();
+    		return data.getTickrateAreas();
     	}
-    	return new ArrayList<>();
+    	return AABB_LIST;
     }
     
-    public static void removeTimeStopArea(ResourceKey<Level> dimension, AABB aabb)
-    {
-       	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		data.removeTimeStopArea(aabb);
-    	}
-    }
-    
-	public static void addTimeStopArea(ResourceKey<Level> dimension, AABB aabb)
+	public static void addTickrateArea(ResourceKey<Level> dimension, AABB aabb, float tickrate)
 	{
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		data.addTimeStopArea(aabb);
+    		data.addTickrateArea(aabb, tickrate);
+    		TickrateNetwork.sendToAll(new UpdateAreaTickratePacket(aabb, tickrate));
     	}
 	}
 	
-	public static void stopTime(ResourceKey<Level> dimension)
+	public static void setLevelTickrate(ResourceKey<Level> dimension, float tickrate)
 	{
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
     	{
-    		data.stopTime();
-    	}
-	}
-
-	public static void unstopTime(ResourceKey<Level> dimension)
-	{
-    	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		data.unstopTime();
+    		data.setTickrate(tickrate);
+    		TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(dimension, tickrate));
     	}
 	}
 	
@@ -180,13 +149,42 @@ public class TickrateUtil
     public static CustomTimer getTimer(Entity entity)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	if(inArea(entity.level.dimension(), entity.getBoundingBox()))
+    	{
+    		return getTimerInArea(entity.level.dimension(), entity.getBoundingBox());
+    	}
     	return cap.getTimer();
     }
     
     public static boolean hasTimer(Entity entity)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
-    	return cap.hasTimer();
+    	return cap.hasTimer() || inArea(entity.level.dimension(), entity.getBoundingBox());
+    }
+    
+    public static CustomTimer getTimerInArea(ResourceKey<Level> dimension, AABB boundingBox)
+    {
+		for(Iterator<Pair<AABB, CustomTimer>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
+		{
+			Pair<AABB, CustomTimer> pair = itr.next();
+			AABB aabb = pair.getLeft();
+			CustomTimer timer = pair.getRight();
+			if(aabb.intersects(boundingBox))
+			{
+				return timer;
+			}
+		}
+		return new CustomTimer(20.0F, 0L);
+    }
+    
+    public static boolean inArea(ResourceKey<Level> dimension, AABB boundingBox)
+    {
+		for(Iterator<Pair<AABB, CustomTimer>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
+		{
+			AABB aabb = itr.next().getLeft();
+			return aabb.intersects(boundingBox);
+		}
+		return false;
     }
     
 	@SuppressWarnings("unchecked")

@@ -20,6 +20,8 @@ public class TickrateNetwork
 	public static void registerMessages()
 	{
 		CHANNEL.registerMessage(ID++, UpdateTickratePacket.class, UpdateTickratePacket::encode, UpdateTickratePacket::new, UpdateTickratePacket.Handler::onMessage);
+		CHANNEL.registerMessage(ID++, UpdateDimensionTickratePacket.class, UpdateDimensionTickratePacket::encode, UpdateDimensionTickratePacket::new, UpdateDimensionTickratePacket.Handler::onMessage);
+		CHANNEL.registerMessage(ID++, UpdateAreaTickratePacket.class, UpdateAreaTickratePacket::encode, UpdateAreaTickratePacket::new, UpdateAreaTickratePacket.Handler::onMessage);
 	}
 	
     public static <MSG> void sendToAll(MSG message) 

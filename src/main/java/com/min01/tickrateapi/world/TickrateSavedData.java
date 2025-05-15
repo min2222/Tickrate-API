@@ -4,6 +4,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang3.tuple.Pair;
+
+import com.min01.tickrateapi.util.CustomTimer;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceKey;
@@ -19,8 +23,8 @@ public class TickrateSavedData extends SavedData
 {
 	public static final String NAME = "tickrate_data";
 	
-	private boolean isStopped;
-	private final List<AABB> areas = new ArrayList<>();
+	private CustomTimer timer = new CustomTimer(20.0F, 0L);
+	private final List<Pair<AABB, CustomTimer>> areas = new ArrayList<>();
 	
     public static TickrateSavedData get(ResourceKey<Level> dimension)
     {
@@ -41,12 +45,12 @@ public class TickrateSavedData extends SavedData
     public static TickrateSavedData load(CompoundTag nbt) 
     {
     	TickrateSavedData data = new TickrateSavedData();
-    	data.isStopped = nbt.getBoolean("isStopped");
+    	data.timer = new CustomTimer(nbt.getFloat("DimensionTickrate"), 0L);
     	ListTag areas = nbt.getList("Areas", 10);
 		for(int i = 0; i < areas.size(); ++i)
 		{
 			CompoundTag tag = areas.getCompound(i);
-			data.addTimeStopArea(new AABB(tag.getDouble("MinX"), tag.getDouble("MinY"), tag.getDouble("MinZ"), tag.getDouble("MaxX"), tag.getDouble("MaxY"), tag.getDouble("MaxZ")));
+			data.addTickrateArea(new AABB(tag.getDouble("MinX"), tag.getDouble("MinY"), tag.getDouble("MinZ"), tag.getDouble("MaxX"), tag.getDouble("MaxY"), tag.getDouble("MaxZ")), tag.getFloat("AreaTickrate"));
 		}
         return data;
     }
@@ -58,63 +62,57 @@ public class TickrateSavedData extends SavedData
 		this.areas.forEach(t -> 
 		{
 			CompoundTag tag = new CompoundTag();
-			tag.putDouble("MinX", t.minX);
-			tag.putDouble("MinY", t.minY);
-			tag.putDouble("MinZ", t.minZ);
-			tag.putDouble("MaxX", t.maxX);
-			tag.putDouble("MaxY", t.maxY);
-			tag.putDouble("MaxZ", t.maxZ);
+			float tickrate = t.getRight().tickrate;
+			AABB aabb = t.getLeft();
+			tag.putDouble("MinX", aabb.minX);
+			tag.putDouble("MinY", aabb.minY);
+			tag.putDouble("MinZ", aabb.minZ);
+			tag.putDouble("MaxX", aabb.maxX);
+			tag.putDouble("MaxY", aabb.maxY);
+			tag.putDouble("MaxZ", aabb.maxZ);
+			tag.putFloat("AreaTickrate", tickrate);
 			areas.add(tag);
 		});
-		nbt.putBoolean("isStopped", this.isStopped);
+		nbt.putFloat("DimensionTickrate", this.timer.tickrate);
 		nbt.put("Areas", areas);
 		return nbt;
 	}
 	
-	public List<AABB> getTimeStopAreas()
+	public void setTickrate(float tickrate)
 	{
-		return this.areas;
-	}
-	
-	public void stopTime()
-	{
-		this.isStopped = true;
+		this.timer = new CustomTimer(tickrate, 0L);
 		this.setDirty();
 	}
 	
-	public void unstopTime()
+	public CustomTimer getTimer()
 	{
-		this.isStopped = false;
-		this.setDirty();
+		return this.timer;
 	}
 	
-	public void removeTimeStopArea(AABB aabb)
+	public void addTickrateArea(AABB aabb, float tickrate)
 	{
-		if(this.areas.contains(aabb))
+		if(tickrate == 20)
 		{
-			for(Iterator<AABB> itr = this.areas.iterator(); itr.hasNext();)
+			for(Iterator<Pair<AABB, CustomTimer>> itr = this.areas.iterator(); itr.hasNext();)
 			{
-				AABB next = itr.next();
-				if(next == aabb)
+				Pair<AABB, CustomTimer> next = itr.next();
+				if(next.getLeft() == aabb)
 				{
 					itr.remove();
 				}
 			}
 			this.setDirty();
 		}
-	}
-	
-	public void addTimeStopArea(AABB aabb)
-	{
-		if(!this.areas.contains(aabb))
+		else
 		{
-			this.areas.add(aabb);
+			Pair<AABB, CustomTimer> pair = Pair.of(aabb, new CustomTimer(tickrate, 0L));
+			this.areas.add(pair);
 			this.setDirty();
 		}
 	}
 	
-	public boolean isStopped()
+	public List<Pair<AABB, CustomTimer>> getTickrateAreas()
 	{
-		return this.isStopped;
+		return this.areas;
 	}
 }

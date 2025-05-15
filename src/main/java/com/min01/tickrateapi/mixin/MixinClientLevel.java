@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.min01.tickrateapi.config.TimerConfig;
+import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
@@ -42,16 +43,25 @@ public abstract class MixinClientLevel extends Level
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
 	private void tickNonPassenger(Entity p_104640_, CallbackInfo ci) 
 	{
-		if(TickrateUtil.isEntityTimeStopped(p_104640_))
-		{
-			ci.cancel();
-		}
 		if(p_104640_ instanceof Player)
 			return;
 		if(TickrateUtil.hasTimer(p_104640_))
 		{
 			ci.cancel();
 			int j = TickrateUtil.getTimer(p_104640_).advanceTime(Util.getMillis());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
+			{
+				this.tickEntities(p_104640_);
+			}
+		}
+		else if(TickrateUtil.hasDimensionTimer(p_104640_.level.dimension()) && !TickrateUtil.isExcluded(p_104640_))
+		{
+			CustomTimer timer = TickrateUtil.getDimensionTimer(p_104640_.level.dimension());
+			if(timer.tickrate == 0.0F)
+			{
+				ci.cancel();
+			}
+			int j = timer.advanceTime(Util.getMillis());
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
 				this.tickEntities(p_104640_);
