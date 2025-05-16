@@ -2,7 +2,6 @@ package com.min01.tickrateapi.mixin;
 
 import java.util.function.Supplier;
 
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -11,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.min01.tickrateapi.config.TimerConfig;
-import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
@@ -22,19 +20,13 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.entity.EntityTickList;
 import net.minecraft.world.level.storage.WritableLevelData;
 
 @Mixin(ClientLevel.class)
 public abstract class MixinClientLevel extends Level
 {
-	@Shadow
-	@Final 
-	EntityTickList tickingEntities;
-	
 	protected MixinClientLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_) 
 	{
 		super(p_220352_, p_220353_, p_270200_, p_220354_, p_220355_, p_220356_, p_220357_, p_220358_, p_220359_);
@@ -43,25 +35,10 @@ public abstract class MixinClientLevel extends Level
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
 	private void tickNonPassenger(Entity p_104640_, CallbackInfo ci) 
 	{
-		if(p_104640_ instanceof Player)
-			return;
 		if(TickrateUtil.hasTimer(p_104640_))
 		{
 			ci.cancel();
 			int j = TickrateUtil.getTimer(p_104640_).advanceTime(Util.getMillis());
-			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
-			{
-				this.tickEntities(p_104640_);
-			}
-		}
-		else if(TickrateUtil.hasDimensionTimer(p_104640_.level.dimension()) && !TickrateUtil.isExcluded(p_104640_))
-		{
-			CustomTimer timer = TickrateUtil.getDimensionTimer(p_104640_.level.dimension());
-			if(timer.tickrate == 0.0F)
-			{
-				ci.cancel();
-			}
-			int j = timer.advanceTime(Util.getMillis());
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
 				this.tickEntities(p_104640_);

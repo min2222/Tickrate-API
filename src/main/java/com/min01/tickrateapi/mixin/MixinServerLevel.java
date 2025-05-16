@@ -1,12 +1,7 @@
 package com.min01.tickrateapi.mixin;
 
-import java.util.List;
-import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-import javax.annotation.Nullable;
-
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -16,79 +11,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.min01.tickrateapi.config.TimerConfig;
-import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.players.SleepStatus;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.raid.Raids;
-import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.dimension.end.EndDragonFight;
-import net.minecraft.world.level.entity.EntityTickList;
-import net.minecraft.world.level.entity.PersistentEntitySectionManager;
-import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.storage.WritableLevelData;
-import net.minecraft.world.ticks.LevelTicks;
 
 @Mixin(ServerLevel.class)
 public abstract class MixinServerLevel extends Level
 {
-	@Shadow
-	@Final
-	private List<ServerPlayer> players;
-	
-	@Shadow
-	private int emptyTime;
-	
-	@Shadow
-	@Final
-	private EntityTickList entityTickList;
-	
-	@Shadow
-	@Final
-	private ServerChunkCache chunkSource;
-	
-	@Shadow
-	@Final
-	private PersistentEntitySectionManager<Entity> entityManager;
-	
-	@Shadow
-	private boolean handlingTick;
-
-	@Shadow
-	@Final
-	private SleepStatus sleepStatus;
-	
-	@Shadow
-	@Final
-	private LevelTicks<Block> blockTicks;
-	
-	@Shadow
-	@Final
-	private LevelTicks<Fluid> fluidTicks;
-	   
-	@Shadow
-	@Final
-	protected Raids raids;
-	
-	@Nullable
-	@Shadow
-	private EndDragonFight dragonFight;
-	
 	protected MixinServerLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_)
 	{
 		super(p_220352_, p_220353_, p_270200_, p_220354_, p_220355_, p_220356_, p_220357_, p_220358_, p_220359_);
@@ -149,188 +88,9 @@ public abstract class MixinServerLevel extends Level
 		}
 	}
 	
-	@Inject(at = @At("HEAD"), method = "tick", cancellable = true)
-	private void tick(BooleanSupplier supplier, CallbackInfo ci) 
-	{
-		if(TickrateUtil.hasDimensionTimer(this.dimension()))
-		{
-			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
-			if(timer.tickrate == 0.0F)
-			{
-				ci.cancel();
-				this.tickChunk(supplier);
-			}
-			else
-			{
-				int j = timer.advanceTime(Util.getMillis());
-				for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
-				{
-					this.tick(supplier);
-				}
-			}
-		}
-	}
-	
-	@Unique
-	private void tick(BooleanSupplier supplier)
-	{
-		ProfilerFiller profilerfiller = this.getProfiler();
-		this.handlingTick = true;
-		profilerfiller.push("world border");
-		this.getWorldBorder().tick();
-		profilerfiller.popPush("weather");
-		this.advanceWeatherCycle();
-		int i = this.getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
-		if(this.sleepStatus.areEnoughSleeping(i) && this.sleepStatus.areEnoughDeepSleeping(i, this.players)) 
-		{
-			if(this.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT))
-			{
-				long j = this.getDayTime() + 24000L;
-				ServerLevel.class.cast(this).setDayTime(net.minecraftforge.event.ForgeEventFactory.onSleepFinished(ServerLevel.class.cast(this), j - j % 24000L, this.getDayTime()));
-			}
-			this.wakeUpAllPlayers();
-			if(this.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE) && this.isRaining())
-			{
-				this.resetWeatherCycle();
-			}
-		}
-
-		this.updateSkyBrightness();
-		this.tickTime();
-		profilerfiller.popPush("tickPending");
-		if(!this.isDebug()) 
-		{
-			long k = this.getGameTime();
-			profilerfiller.push("blockTicks");
-			this.blockTicks.tick(k, 65536, this::tickBlock);
-			profilerfiller.popPush("fluidTicks");
-			this.fluidTicks.tick(k, 65536, this::tickFluid);
-			profilerfiller.pop();
-		}
-		profilerfiller.popPush("raid");
-		this.raids.tick();
-		profilerfiller.popPush("chunkSource");
-		this.getChunkSource().tick(supplier, true);
-		profilerfiller.popPush("blockEvents");
-		this.runBlockEvents();
-		this.handlingTick = false;
-		profilerfiller.pop();
-		boolean flag = !this.players.isEmpty() || net.minecraftforge.common.world.ForgeChunkManager.hasForcedChunks(ServerLevel.class.cast(this)); //Forge: Replace vanilla's has forced chunk check with forge's that checks both the vanilla and forge added ones
-		if(flag) 
-		{
-			ServerLevel.class.cast(this).resetEmptyTime();
-		}
-
-		if(flag || this.emptyTime++ < 300)
-		{
-			profilerfiller.push("entities");
-			if(this.dragonFight != null) 
-			{
-				profilerfiller.push("dragonFight");
-				this.dragonFight.tick();
-				profilerfiller.pop();
-			}
-			this.entityTickList.forEach((p_184065_) -> 
-			{
-				if(!p_184065_.isRemoved())
-				{
-					if(this.shouldDiscardEntity(p_184065_)) 
-					{
-						p_184065_.discard();
-					} 
-					else 
-					{
-						profilerfiller.push("checkDespawn");
-						p_184065_.checkDespawn();
-						profilerfiller.pop();
-						if(this.chunkSource.chunkMap.getDistanceManager().inEntityTickingRange(p_184065_.chunkPosition().toLong())) 
-						{
-							Entity entity = p_184065_.getVehicle();
-							if(entity != null) 
-							{
-								if(!entity.isRemoved() && entity.hasPassenger(p_184065_))
-								{
-									return;
-								}
-								p_184065_.stopRiding();
-							}
-							profilerfiller.push("tick");
-							if(!p_184065_.isRemoved() && !(p_184065_ instanceof net.minecraftforge.entity.PartEntity)) 
-							{
-								this.guardEntityTick(this::tickNonPassenger, p_184065_);
-							}
-							profilerfiller.pop();
-						}
-					}
-				}
-			});
-			profilerfiller.pop();
-			this.tickBlockEntities();
-		}
-		profilerfiller.push("entityManagement");
-		this.entityManager.tick();
-		profilerfiller.pop();
-	}
-	
-	@Unique
-	private void tickChunk(BooleanSupplier supplier)
-	{
-		ProfilerFiller profilerfiller = this.getProfiler();
-		profilerfiller.popPush("chunkSource");
-		this.getChunkSource().tick(supplier, true);
-		boolean flag = !this.players.isEmpty() || net.minecraftforge.common.world.ForgeChunkManager.hasForcedChunks(ServerLevel.class.cast(this));
-		if(flag || this.emptyTime++ < 300) 
-		{
-			profilerfiller.push("entities");
-			this.entityTickList.forEach((p_184065_) -> 
-			{
-				if(!p_184065_.isRemoved())
-				{
-					if(this.shouldDiscardEntity(p_184065_))
-					{
-						p_184065_.discard();
-					} 
-					else
-					{
-						profilerfiller.push("checkDespawn");
-						p_184065_.checkDespawn();
-						profilerfiller.pop();
-						if(this.chunkSource.chunkMap.getDistanceManager().inEntityTickingRange(p_184065_.chunkPosition().toLong()))
-						{
-							Entity entity = p_184065_.getVehicle();
-							if(entity != null)
-							{
-								if(!entity.isRemoved() && entity.hasPassenger(p_184065_)) 
-								{
-									return;
-								}
-
-								p_184065_.stopRiding();
-							}
-
-							profilerfiller.push("tick");
-							if(!p_184065_.isRemoved() && !(p_184065_ instanceof net.minecraftforge.entity.PartEntity))
-							{
-								this.guardEntityTick(this::tickNonPassenger, p_184065_);
-							}
-							profilerfiller.pop();
-						}
-					}
-				}
-			});
-			profilerfiller.pop();
-		}
-		
-		profilerfiller.push("entityManagement");
-		this.entityManager.tick();
-		profilerfiller.pop();
-	}
-	
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
 	private void tickNonPassenger(Entity p_8648_, CallbackInfo ci) 
 	{
-		if(p_8648_ instanceof Player)
-			return;
 		if(TickrateUtil.hasTimer(p_8648_))
 		{
 			ci.cancel();
@@ -342,12 +102,8 @@ public abstract class MixinServerLevel extends Level
 		}
 		else if(TickrateUtil.hasDimensionTimer(p_8648_.level.dimension()) && !TickrateUtil.isExcluded(p_8648_))
 		{
-			CustomTimer timer = TickrateUtil.getDimensionTimer(p_8648_.level.dimension());
-			if(timer.tickrate == 0.0F)
-			{
-				ci.cancel();
-			}
-			int j = timer.advanceTime(Util.getMillis());
+			ci.cancel();
+			int j = TickrateUtil.getDimensionTimer(p_8648_.level.dimension()).advanceTime(Util.getMillis());
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
 				this.tickEntities(p_8648_);
@@ -373,60 +129,6 @@ public abstract class MixinServerLevel extends Level
 		{
 			this.tickPassenger(p_8648_, entity);
 		}
-	}
-	
-	@Shadow
-	private void advanceWeatherCycle()
-	{
-		   
-	}
-	
-	@Shadow
-	private void wakeUpAllPlayers()
-	{
-		   
-	}
-	
-	@Shadow
-	private void resetWeatherCycle()
-	{
-		
-	}
-	
-	@Shadow
-	protected void tickTime()
-	{
-		
-	}
-	
-	@Shadow
-	private void tickFluid(BlockPos p_184077_, Fluid p_184078_) 
-	{
-		
-	}
-
-	@Shadow
-	private void tickBlock(BlockPos p_184113_, Block p_184114_) 
-	{
-	   
-	}
-	
-	@Shadow
-	private void runBlockEvents() 
-	{
-		   
-	}
-	
-	@Shadow
-	private void tickNonPassenger(Entity p_8648_) 
-	{
-		
-	}
-	
-	@Shadow
-	private boolean shouldDiscardEntity(Entity p_143343_)
-	{
-		throw new IllegalStateException();
 	}
 	
 	@Shadow
