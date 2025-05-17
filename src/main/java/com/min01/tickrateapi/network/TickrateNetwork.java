@@ -24,6 +24,11 @@ public class TickrateNetwork
 		CHANNEL.registerMessage(ID++, UpdateAreaTickratePacket.class, UpdateAreaTickratePacket::encode, UpdateAreaTickratePacket::new, UpdateAreaTickratePacket.Handler::onMessage);
 	}
 	
+    public static <MSG> void sendToServer(MSG message) 
+    {
+    	CHANNEL.sendToServer(message);
+    }
+	
     public static <MSG> void sendToAll(MSG message) 
     {
     	for(ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) 

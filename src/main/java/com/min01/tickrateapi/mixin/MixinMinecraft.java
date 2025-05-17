@@ -14,6 +14,7 @@ import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Timer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraftforge.event.ForgeEventFactory;
@@ -29,6 +30,10 @@ public class MixinMinecraft
 	
 	@Nullable
 	@Shadow
+	public ClientLevel level;
+	
+	@Nullable
+	@Shadow
 	public LocalPlayer player;
 	
 	@Final
@@ -38,15 +43,15 @@ public class MixinMinecraft
 	@Inject(at = @At("HEAD"), method = "getFrameTime", cancellable = true)
 	private void getFrameTime(CallbackInfoReturnable<Float> cir) 
 	{
-		if(this.player != null)
+		if(this.player != null && this.level != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
 				cir.setReturnValue(TickrateUtil.getTimer(this.player).partialTick);
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 			{
-				cir.setReturnValue(TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick);
+				cir.setReturnValue(TickrateUtil.getDimensionTimer(this.level.dimension()).partialTick);
 			}
 		}
 	}
@@ -54,15 +59,15 @@ public class MixinMinecraft
 	@Inject(at = @At("HEAD"), method = "getDeltaFrameTime", cancellable = true)
 	private void getDeltaFrameTime(CallbackInfoReturnable<Float> cir) 
 	{
-		if(this.player != null)
+		if(this.player != null && this.level != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
 				cir.setReturnValue(TickrateUtil.getTimer(this.player).tickDelta);
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 			{
-				cir.setReturnValue(TickrateUtil.getDimensionTimer(this.player.level.dimension()).tickDelta);
+				cir.setReturnValue(TickrateUtil.getDimensionTimer(this.level.dimension()).tickDelta);
 			}
 		}
 	}
@@ -70,15 +75,15 @@ public class MixinMinecraft
 	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Timer;advanceTime(J)I"), method = "runTick")
 	private int advanceTime(Timer instance, long p_92526_)
 	{
-		if(this.player != null)
+		if(this.player != null && this.level != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
 				return TickrateUtil.getTimer(this.player).advanceTime(p_92526_);
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 			{
-				return TickrateUtil.getDimensionTimer(this.player.level.dimension()).advanceTime(p_92526_);
+				return TickrateUtil.getDimensionTimer(this.level.dimension()).advanceTime(p_92526_);
 			}
 			else
 			{
@@ -94,15 +99,15 @@ public class MixinMinecraft
 	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"), method = "runTick")
 	private void render(GameRenderer instance, float f1, long crashreport, boolean crashreportcategory)
 	{
-		if(this.player != null)
+		if(this.player != null && this.level != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
 				instance.render(this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick, crashreport, crashreportcategory);
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 			{
-				instance.render(TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick, crashreport, crashreportcategory);
+				instance.render(TickrateUtil.getDimensionTimer(this.level.dimension()).partialTick, crashreport, crashreportcategory);
 			}
 			else
 			{
@@ -118,15 +123,15 @@ public class MixinMinecraft
 	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickStart(F)V"), method = "runTick", remap = false)
 	private void onRenderTickStart(float timer)
 	{
-		if(this.player != null)
+		if(this.player != null && this.level != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
 				ForgeEventFactory.onRenderTickStart(this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick);
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 			{
-				ForgeEventFactory.onRenderTickStart(TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick);
+				ForgeEventFactory.onRenderTickStart(TickrateUtil.getDimensionTimer(this.level.dimension()).partialTick);
 			}
 			else
 			{
@@ -142,15 +147,15 @@ public class MixinMinecraft
 	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickEnd(F)V"), method = "runTick", remap = false)
 	private void onRenderTickEnd(float timer)
 	{
-		if(this.player != null)
+		if(this.player != null && this.level != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
 				ForgeEventFactory.onRenderTickEnd(this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick);
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 			{
-				ForgeEventFactory.onRenderTickEnd(TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick);
+				ForgeEventFactory.onRenderTickEnd(TickrateUtil.getDimensionTimer(this.level.dimension()).partialTick);
 			}
 			else
 			{

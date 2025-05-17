@@ -39,6 +39,7 @@ public class TickrateUtil
 	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
 	public static final Map<ResourceKey<Level>, CustomTimer> LEVEL_MAP = new HashMap<>();
 	public static final List<Pair<AABB, CustomTimer>> AABB_LIST = new ArrayList<>();
+	public static final CustomTimer TIMER = new CustomTimer(20.0F, 0L);
 	
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event)
@@ -174,7 +175,7 @@ public class TickrateUtil
 				return timer;
 			}
 		}
-		return new CustomTimer(20.0F, 0L);
+		return TickrateUtil.TIMER;
     }
     
     public static boolean inArea(ResourceKey<Level> dimension, AABB boundingBox)

@@ -2,10 +2,10 @@ package com.min01.tickrateapi.util;
 
 public class CustomTimer
 {
-	public float tickDelta;
-	private float msPerTick;
 	public float partialTick;
-	private long lastMs;
+	public float tickDelta;
+	public long lastMs;
+	public final float msPerTick;
 	public float tickrate;
 	public boolean shouldChangeSubEntities = true;
 
