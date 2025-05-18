@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.min01.tickrateapi.config.TimerConfig;
-import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
@@ -31,8 +30,11 @@ import net.minecraft.world.level.storage.WritableLevelData;
 public abstract class MixinServerLevel extends Level
 {
 	@Unique
-	private int time;
+	private boolean canTick;
 	
+	@Unique
+	private int tick = 0;
+    
 	protected MixinServerLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_)
 	{
 		super(p_220352_, p_220353_, p_270200_, p_220354_, p_220355_, p_220356_, p_220357_, p_220358_, p_220359_);
@@ -92,16 +94,27 @@ public abstract class MixinServerLevel extends Level
 			return this.getClassContext();
 		}
 	}
-	
-	@Inject(at = @At("TAIL"), method = "tick", cancellable = true)
-	private void tick(BooleanSupplier supplier, CallbackInfo ci) 
+
+	@Inject(at = @At("HEAD"), method = "tick", cancellable = true)
+	private void tick(BooleanSupplier supplier, CallbackInfo ci)
 	{
-		if(TickrateUtil.hasDimensionTimer(this.dimension()))
-		{
-			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
-			this.time = timer.advanceTime(Util.getMillis());
-			System.out.println(this.time);
-		}
+	    float tickrate = TickrateUtil.getDimensionTimer(this.dimension()).tickrate;
+	    if(tickrate < 0.0F)
+	    {
+	        tickrate = 0.0F;
+	    }
+	    TickrateUtil.getDimensionTimer(this.dimension()).accumulator += tickrate / 20.0F;
+	    int logicTicks = (int) TickrateUtil.getDimensionTimer(this.dimension()).accumulator;
+	    if(logicTicks >= 1) 
+	    {
+	        this.canTick = true;
+	        TickrateUtil.getDimensionTimer(this.dimension()).accumulator -= logicTicks;
+	        TickrateUtil.getDimensionTimer(this.dimension()).pendingTicks = logicTicks;
+	    } 
+	    else
+	    {
+	        this.canTick = false;
+	    }
 	}
 	
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
@@ -119,10 +132,13 @@ public abstract class MixinServerLevel extends Level
 		else if(TickrateUtil.hasDimensionTimer(this.dimension()) && !TickrateUtil.isExcluded(p_8648_))
 		{
 			ci.cancel();
-			int j = this.time;
-			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
+			if(this.canTick)
 			{
-				this.tickEntities(p_8648_);
+	            int tick = TickrateUtil.getDimensionTimer(this.dimension()).pendingTicks;
+	            for(int i = 0; i < tick; i++) 
+	            {
+	                this.tickEntities(p_8648_);
+	            }
 			}
 		}
 	}

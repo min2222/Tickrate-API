@@ -8,6 +8,8 @@ public class CustomTimer
 	public final float msPerTick;
 	public float tickrate;
 	public boolean shouldChangeSubEntities = true;
+    public float accumulator = 0.0F;
+    public int pendingTicks = 0;
 
 	public CustomTimer(float p_92523_, long p_92524_)
 	{
