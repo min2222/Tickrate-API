@@ -30,6 +30,7 @@ public class MixinTextureManager
 		Minecraft mc = Minecraft.getInstance();
 		if(TickrateUtil.hasDimensionTimer(mc.level.dimension()) && TickrateUtil.isExcluded(mc.player))
 		{
+			ci.cancel();
 			int j = ((ITime)mc.level).getTime();
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{

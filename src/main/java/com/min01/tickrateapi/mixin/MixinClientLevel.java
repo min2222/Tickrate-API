@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.min01.tickrateapi.config.TimerConfig;
+import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.ITime;
 import com.min01.tickrateapi.util.TickrateUtil;
 
@@ -45,9 +46,10 @@ public abstract class MixinClientLevel extends Level implements ITime
 	@Inject(at = @At("TAIL"), method = "tick", cancellable = true)
 	private void tick(BooleanSupplier supplier, CallbackInfo ci) 
 	{
-		if(TickrateUtil.hasDimensionTimer(this.dimension()))
+		if(TickrateUtil.hasDimensionTimer(this.dimension()) && TickrateUtil.isExcluded(Minecraft.getInstance().player))
 		{
-			this.time = TickrateUtil.getDimensionTimer(this.dimension()).advanceTime(Util.getMillis());
+			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
+			this.time = timer.advanceTime(Util.getMillis());
 		}
 		this.normalTime = TickrateUtil.TIMER.advanceTime(Util.getMillis());
 	}
@@ -124,5 +126,11 @@ public abstract class MixinClientLevel extends Level implements ITime
 	public int getTime() 
 	{
 		return this.time;
+	}
+	
+	@Override
+	public void setTime(int time)
+	{
+		this.time = time;
 	}
 }

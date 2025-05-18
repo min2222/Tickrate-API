@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.min01.tickrateapi.config.TimerConfig;
+import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
@@ -97,7 +98,9 @@ public abstract class MixinServerLevel extends Level
 	{
 		if(TickrateUtil.hasDimensionTimer(this.dimension()))
 		{
-			this.time = TickrateUtil.getDimensionTimer(this.dimension()).advanceTime(Util.getMillis());
+			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
+			this.time = timer.advanceTime(Util.getMillis());
+			System.out.println(this.time);
 		}
 	}
 	

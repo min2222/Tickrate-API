@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.min01.tickrateapi.util.ITime;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.client.Minecraft;
@@ -78,7 +79,9 @@ public class MixinMinecraft
 			}
 			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
 			{
-				return TickrateUtil.getDimensionTimer(this.player.level.dimension()).advanceTime(p_92526_);
+				int j = TickrateUtil.getDimensionTimer(this.player.level.dimension()).advanceTime(p_92526_);
+				((ITime)this.player.level).setTime(j);
+				return j;
 			}
 			else
 			{

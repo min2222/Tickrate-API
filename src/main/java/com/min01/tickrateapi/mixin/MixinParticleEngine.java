@@ -57,6 +57,7 @@ public class MixinParticleEngine
 	{
 		if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && TickrateUtil.isExcluded(Minecraft.getInstance().player))
 		{
+			ci.cancel();
 			int j = ((ITime)this.level).getTime();
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
