@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.min01.tickrateapi.config.TimerConfig;
+import com.min01.tickrateapi.util.ITime;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
@@ -28,10 +29,13 @@ import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.WritableLevelData;
 
 @Mixin(ClientLevel.class)
-public abstract class MixinClientLevel extends Level
+public abstract class MixinClientLevel extends Level implements ITime
 {
 	@Unique
 	private int time;
+	
+	@Unique
+	private int normalTime;
 	
 	protected MixinClientLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_) 
 	{
@@ -41,19 +45,19 @@ public abstract class MixinClientLevel extends Level
 	@Inject(at = @At("TAIL"), method = "tick", cancellable = true)
 	private void tick(BooleanSupplier supplier, CallbackInfo ci) 
 	{
-		Minecraft mc = Minecraft.getInstance();
-		if(TickrateUtil.hasTimer(mc.player))
+		if(TickrateUtil.hasDimensionTimer(this.dimension()))
 		{
-			this.time = TickrateUtil.TIMER.advanceTime(Util.getMillis());
+			this.time = TickrateUtil.getDimensionTimer(this.dimension()).advanceTime(Util.getMillis());
 		}
+		this.normalTime = TickrateUtil.TIMER.advanceTime(Util.getMillis());
 	}
 
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
 	private void tickNonPassenger(Entity p_104640_, CallbackInfo ci) 
 	{
-		Minecraft mc = Minecraft.getInstance();
 		if(p_104640_ instanceof Player)
 			return;
+		Minecraft mc = Minecraft.getInstance();
 		if(TickrateUtil.hasTimer(p_104640_))
 		{
 			ci.cancel();
@@ -63,13 +67,28 @@ public abstract class MixinClientLevel extends Level
 				this.tickEntities(p_104640_);
 			}
 		}
-		else if(TickrateUtil.hasTimer(mc.player) || (TickrateUtil.hasDimensionTimer(this.dimension()) && TickrateUtil.isExcluded(p_104640_)))
+		else if(TickrateUtil.hasDimensionTimer(this.dimension()))
 		{
-			ci.cancel();
-			int j = this.time;
-			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
+			if(!TickrateUtil.isExcluded(p_104640_))
 			{
-				this.tickEntities(p_104640_);
+				if(TickrateUtil.isExcluded(mc.player))
+				{
+					ci.cancel();
+					int j = this.time;
+					for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
+					{
+						this.tickEntities(p_104640_);
+					}
+				}
+			}
+			else
+			{
+				ci.cancel();
+				int j = this.normalTime;
+				for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
+				{
+					this.tickEntities(p_104640_);
+				}
 			}
 		}
 	}
@@ -99,5 +118,11 @@ public abstract class MixinClientLevel extends Level
 	private void tickPassenger(Entity p_104642_, Entity p_104643_) 
 	{
 		
+	}
+	
+	@Override
+	public int getTime() 
+	{
+		return this.time;
 	}
 }

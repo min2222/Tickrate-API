@@ -10,7 +10,7 @@ import net.minecraftforge.network.PacketDistributor;
 
 public class TickrateCapabilityImpl implements ITickrateCapability
 {
-	private CustomTimer timer = new CustomTimer(20.0F, 0);
+	private CustomTimer timer = new CustomTimer(20.0F, 0L);
 	private Entity entity;
 	private boolean excluded;
 	private boolean excludeSubEntities;
@@ -61,7 +61,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void resetTickrate()
 	{
-		this.timer = new CustomTimer(20.0F, 0);
+		this.timer = new CustomTimer(20.0F, 0L);
 		this.hasTimer = false;
 		this.sendUpdatePacket(true);
 	}

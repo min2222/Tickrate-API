@@ -138,7 +138,7 @@ public class TickrateUtil
     public static void setTickrate(Entity entity, float tickrate)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
-    	cap.setTimer(new CustomTimer(tickrate, 0));
+    	cap.setTimer(new CustomTimer(tickrate, 0L));
     }
     
     public static void resetTickrate(Entity entity)

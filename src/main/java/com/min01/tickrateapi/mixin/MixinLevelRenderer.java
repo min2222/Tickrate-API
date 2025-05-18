@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 
 @Mixin(LevelRenderer.class)
 public class MixinLevelRenderer
@@ -47,15 +48,35 @@ public class MixinLevelRenderer
 	    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
 	    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
 		}
-		else if(TickrateUtil.hasTimer(this.minecraft.player) || (TickrateUtil.hasDimensionTimer(p_109518_.level.dimension()) && TickrateUtil.isExcluded(p_109518_))) 
+		else if(TickrateUtil.hasDimensionTimer(this.level.dimension()))
 		{
-			ci.cancel();
-			float partialTick = TickrateUtil.TIMER.partialTick;
-			double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
-	    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
-	    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
-	    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
-	    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
+			if(p_109518_ instanceof Player)
+				return;
+	    	if(!TickrateUtil.isExcluded(p_109518_))
+	    	{
+	    		if(TickrateUtil.isExcluded(this.minecraft.player))
+	    		{
+	    	    	ci.cancel();
+					CustomTimer timer = TickrateUtil.getDimensionTimer(p_109518_.level.dimension());
+					float partialTick = timer.partialTick;
+					double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
+			    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
+			    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
+			    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
+			    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
+	    		}
+	    	}
+	    	else
+	    	{
+		    	ci.cancel();
+				CustomTimer timer = TickrateUtil.TIMER;
+				float partialTick = timer.partialTick;
+				double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
+		    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
+		    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
+		    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
+		    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
+	    	}
 		}
     }
 }

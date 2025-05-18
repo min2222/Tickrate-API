@@ -61,7 +61,10 @@ public class UpdateTickratePacket
 						}
 						else
 						{
-							cap.setTimer(message.cap.getTimer());
+							if(message.cap.hasTimer())
+							{
+								cap.setTimer(message.cap.getTimer());
+							}
 							cap.exclude(message.cap.isExcluded());
 							cap.excludeSubEntities(message.cap.shouldExcludeSubEntities());
 						}

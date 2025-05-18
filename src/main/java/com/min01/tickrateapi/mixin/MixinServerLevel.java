@@ -117,7 +117,6 @@ public abstract class MixinServerLevel extends Level
 		{
 			ci.cancel();
 			int j = this.time;
-			//FIXME always return zero, prevents entity ticking;
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
 				this.tickEntities(p_8648_);
