@@ -85,7 +85,10 @@ public abstract class MixinServerLevel extends Level
 	@Inject(at = @At("HEAD"), method = "tick", cancellable = true)
 	private void tick(BooleanSupplier supplier, CallbackInfo ci)
 	{
-		this.tickDimensionTimer();
+		if(TickrateUtil.hasDimensionTimer(this.dimension()))
+		{
+			this.tickDimensionTimer();
+		}
 	}
 	
 	public void tickEntityTimer(CustomTimer timer, Entity entity)

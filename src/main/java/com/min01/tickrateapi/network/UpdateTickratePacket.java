@@ -61,7 +61,7 @@ public class UpdateTickratePacket
 						}
 						else
 						{
-							cap.sync(message.cap.isExcluded(), message.cap.shouldExcludeSubEntities(), message.cap.getBaseTimer().tickrate, message.cap.getCurrentTimer().tickrate, message.cap.shouldChangeSubEntities());
+							cap.sync(message.cap.isExcluded(), message.cap.shouldChangeSubEntities(), message.cap.shouldExcludeSubEntities(), message.cap.getBaseTimer().tickrate, message.cap.getCurrentTimer().tickrate, message.cap.getTick());
 						}
 					});
 				}

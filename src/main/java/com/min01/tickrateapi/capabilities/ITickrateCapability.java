@@ -25,6 +25,8 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	void resetTickrate();
 	
 	void tick();
+	
+	int getTick();
 
 	CustomTimer getBaseTimer();
 	
@@ -44,5 +46,5 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	
 	boolean hasTimer();
 	
-	void sync(boolean excluded, boolean shouldExcludeSubEntities, float baseTickrate, float currentTickrate, boolean changeSubEntities);
+	void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate, int tick);
 }

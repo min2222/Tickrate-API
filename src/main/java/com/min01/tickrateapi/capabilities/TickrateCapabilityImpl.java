@@ -18,7 +18,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	private boolean shouldChangeSubEntities = true;
 	private float baseTickrate = 20.0F;
 	private float tickrate = 20.0F;
-	private int tick = 20;
+	private int tick = 21;
 	
 	@Override
 	public CompoundTag serializeNBT() 
@@ -81,6 +81,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 		this.baseTimer.setTickrate(20.0F);
 		this.baseTickrate = 20.0F;
 		this.tickrate = 20.0F;
+		this.tick = 21;
 		this.sendUpdatePacket(true);
 	}
 
@@ -90,11 +91,18 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 		if(this.baseTimer.tickrate == 20.0F)
 		{
 			this.tick += 1;
+			this.sendUpdatePacket(false);
 		}
 		this.baseTimer.setTick(this.tick);
 		this.currentTimer.setTick(this.tick);
 		this.currentTimer.setTickrate(this.baseTimer.tickrate);
 		this.tickrate = this.baseTickrate;
+	}
+	
+	@Override
+	public int getTick()
+	{
+		return this.tick;
 	}
 
 	@Override
@@ -155,15 +163,16 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	}
 	
 	@Override
-	public void sync(boolean excluded, boolean shouldExcludeSubEntities, float baseTickrate, float currentTickrate, boolean changeSubEntities)
+	public void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate, int tick)
 	{
 		this.excluded = excluded;
-		this.excludeSubEntities = shouldExcludeSubEntities;
+		this.excludeSubEntities = excludeSubEntities;
 		this.shouldChangeSubEntities = changeSubEntities;
 		this.baseTimer.setTickrate(baseTickrate);
 		this.baseTickrate = baseTickrate;
 		this.currentTimer.setTickrate(currentTickrate);
 		this.tickrate = currentTickrate;
+		this.tick = tick;
 	}
 	
 	private void sendUpdatePacket(boolean reset) 
