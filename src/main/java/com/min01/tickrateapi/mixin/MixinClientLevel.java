@@ -32,11 +32,10 @@ import net.minecraft.world.level.storage.WritableLevelData;
 @Mixin(ClientLevel.class)
 public abstract class MixinClientLevel extends Level implements ITime
 {
-	@Unique
 	private int time;
-	
-	@Unique
 	private int normalTime;
+	
+	private final CustomTimer dimensionTimer = new CustomTimer(20.0F, 0L);
 	
 	protected MixinClientLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_) 
 	{
@@ -51,7 +50,7 @@ public abstract class MixinClientLevel extends Level implements ITime
 			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
 			this.time = timer.advanceTime(Util.getMillis());
 		}
-		this.normalTime = TickrateUtil.TIMER.advanceTime(Util.getMillis());
+		this.normalTime = this.dimensionTimer.advanceTime(Util.getMillis());
 	}
 
 	@Inject(at = @At("HEAD"), method = "tickNonPassenger", cancellable = true)
@@ -63,7 +62,8 @@ public abstract class MixinClientLevel extends Level implements ITime
 		if(TickrateUtil.hasTimer(p_104640_))
 		{
 			ci.cancel();
-			int j = TickrateUtil.getTimer(p_104640_).advanceTime(Util.getMillis());
+			CustomTimer timer = TickrateUtil.getTimer(p_104640_);
+			int j = timer.advanceTime(Util.getMillis());
 			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 			{
 				this.tickEntities(p_104640_);

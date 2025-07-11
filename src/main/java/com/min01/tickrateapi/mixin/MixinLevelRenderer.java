@@ -69,13 +69,11 @@ public class MixinLevelRenderer
 	    	else
 	    	{
 		    	ci.cancel();
-				CustomTimer timer = TickrateUtil.TIMER;
-				float partialTick = timer.partialTick;
-				double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
-		    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
-		    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
-		    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
-		    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
+				double d0 = Mth.lerp((double)p_109522_, p_109518_.xOld, p_109518_.getX());	
+		    	double d1 = Mth.lerp((double)p_109522_, p_109518_.yOld, p_109518_.getY());
+		    	double d2 = Mth.lerp((double)p_109522_, p_109518_.zOld, p_109518_.getZ());
+		    	float f = Mth.lerp(p_109522_, p_109518_.yRotO, p_109518_.getYRot());
+		    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, p_109522_, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, p_109522_));
 	    	}
 		}
     }

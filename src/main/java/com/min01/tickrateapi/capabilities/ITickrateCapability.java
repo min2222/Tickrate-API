@@ -20,6 +20,8 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	
 	void setTickrate(float tickrate);
 	
+	float getTickrate();
+	
 	void resetTickrate();
 	
 	void tick();
@@ -33,10 +35,14 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	boolean isExcluded();
 	
 	void excludeSubEntities(boolean flag);
+
+	void changeSubEntities(boolean flag);
 	
 	boolean shouldExcludeSubEntities();
 	
+	boolean shouldChangeSubEntities();
+	
 	boolean hasTimer();
 	
-	void sync(boolean excluded, boolean shouldExcludeSubEntities, float baseTickrate, float currentTickrate, boolean baseChangeSubEntities, boolean currentChangeSubEntities);
+	void sync(boolean excluded, boolean shouldExcludeSubEntities, float baseTickrate, float currentTickrate, boolean changeSubEntities);
 }

@@ -23,8 +23,9 @@ public class TickrateSavedData extends SavedData
 {
 	public static final String NAME = "tickrate_data";
 	
-	private CustomTimer timer = new CustomTimer(20.0F, 0L);
-	private final List<Pair<AABB, CustomTimer>> areas = new ArrayList<>();
+	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
+	
+	private final List<Pair<AABB, Float>> areas = new ArrayList<>();
 	
     public static TickrateSavedData get(ResourceKey<Level> dimension)
     {
@@ -45,7 +46,7 @@ public class TickrateSavedData extends SavedData
     public static TickrateSavedData load(CompoundTag nbt) 
     {
     	TickrateSavedData data = new TickrateSavedData();
-    	data.timer = new CustomTimer(nbt.getFloat("DimensionTickrate"), 0L);
+    	data.currentTimer.setTickrate(nbt.getFloat("DimensionTickrate"));
     	ListTag areas = nbt.getList("Areas", 10);
 		for(int i = 0; i < areas.size(); ++i)
 		{
@@ -62,7 +63,6 @@ public class TickrateSavedData extends SavedData
 		this.areas.forEach(t -> 
 		{
 			CompoundTag tag = new CompoundTag();
-			float tickrate = t.getRight().tickrate;
 			AABB aabb = t.getLeft();
 			tag.putDouble("MinX", aabb.minX);
 			tag.putDouble("MinY", aabb.minY);
@@ -70,33 +70,33 @@ public class TickrateSavedData extends SavedData
 			tag.putDouble("MaxX", aabb.maxX);
 			tag.putDouble("MaxY", aabb.maxY);
 			tag.putDouble("MaxZ", aabb.maxZ);
-			tag.putFloat("AreaTickrate", tickrate);
+			tag.putFloat("AreaTickrate", t.getRight());
 			areas.add(tag);
 		});
-		nbt.putFloat("DimensionTickrate", this.timer.tickrate);
+		nbt.putFloat("DimensionTickrate", this.currentTimer.tickrate);
 		nbt.put("Areas", areas);
 		return nbt;
 	}
 	
 	public void setTickrate(float tickrate)
 	{
-		this.timer = new CustomTimer(tickrate, 0L);
+		this.currentTimer.setTickrate(tickrate);
 		this.setDirty();
 	}
 	
 	public CustomTimer getTimer()
 	{
-		return this.timer;
+		return this.currentTimer;
 	}
 	
 	public void addTickrateArea(AABB aabb, float tickrate)
 	{
 		if(tickrate == 20)
 		{
-			for(Iterator<Pair<AABB, CustomTimer>> itr = this.areas.iterator(); itr.hasNext();)
+			for(Iterator<Pair<AABB, Float>> itr = this.areas.iterator(); itr.hasNext();)
 			{
-				Pair<AABB, CustomTimer> next = itr.next();
-				if(next.getLeft() == aabb)
+				Pair<AABB, Float> next = itr.next();
+				if(next.getLeft().equals(aabb))
 				{
 					itr.remove();
 				}
@@ -105,13 +105,13 @@ public class TickrateSavedData extends SavedData
 		}
 		else
 		{
-			Pair<AABB, CustomTimer> pair = Pair.of(aabb, new CustomTimer(tickrate, 0L));
+			Pair<AABB, Float> pair = Pair.of(aabb, tickrate);
 			this.areas.add(pair);
 			this.setDirty();
 		}
 	}
 	
-	public List<Pair<AABB, CustomTimer>> getTickrateAreas()
+	public List<Pair<AABB, Float>> getTickrateAreas()
 	{
 		return this.areas;
 	}

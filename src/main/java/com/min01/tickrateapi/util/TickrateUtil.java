@@ -27,6 +27,7 @@ import net.minecraft.world.level.entity.LevelEntityGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
@@ -39,15 +40,29 @@ public class TickrateUtil
 	public static final Map<Integer, Entity> ENTITY_MAP = new HashMap<>();
 	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
 	public static final Map<ResourceKey<Level>, CustomTimer> LEVEL_MAP = new HashMap<>();
-	public static final List<Pair<AABB, CustomTimer>> AABB_LIST = new ArrayList<>();
-	public static final CustomTimer TIMER = new CustomTimer(20.0F, 0L);
+	public static final List<Pair<AABB, Float>> AABB_LIST = new ArrayList<>();
 	
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event)
     {
     	SetTickrateCommand.register(event.getDispatcher());
     }
-	
+    
+	@SubscribeEvent
+	public static void onLevelLoadEvent(LevelEvent.Load event)
+	{
+		ResourceKey<Level> dimension = ((Level) event.getLevel()).dimension();
+    	TickrateSavedData data = TickrateSavedData.get(dimension);
+    	if(data != null)
+    	{
+    		TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(dimension, data.getTimer().tickrate));
+    		data.getTickrateAreas().forEach(t ->
+    		{
+        		TickrateNetwork.sendToAll(new UpdateAreaTickratePacket(t.getLeft(), t.getRight()));
+    		});
+    	}
+	}
+    
 	@SubscribeEvent
 	public static void onEntityJoinLevel(EntityJoinLevelEvent event)
 	{
@@ -55,7 +70,7 @@ public class TickrateUtil
 		ENTITY_MAP.put(entity.getClass().hashCode(), entity);
 		ENTITY_MAP2.put(entity.getClass().getSuperclass().hashCode(), entity);
 	}
-	
+
 	public static boolean hasDimensionTimer(ResourceKey<Level> dimension)
 	{
     	TickrateSavedData data = TickrateSavedData.get(dimension);
@@ -82,13 +97,19 @@ public class TickrateUtil
     	return cap.isExcluded();
     }
     
+    public static boolean shouldChangeSubEntities(Entity entity)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.shouldChangeSubEntities();
+    }
+    
     public static boolean shouldExcludeSubEntities(Entity entity)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
     	return cap.shouldExcludeSubEntities();
     }
     
-    public static List<Pair<AABB, CustomTimer>> getTickrateAreas(ResourceKey<Level> dimension)
+    public static List<Pair<AABB, Float>> getTickrateAreas(ResourceKey<Level> dimension)
     {
     	TickrateSavedData data = TickrateSavedData.get(dimension);
     	if(data != null)
@@ -136,6 +157,12 @@ public class TickrateUtil
     	cap.excludeSubEntities(excludeSubEntities);
     }
     
+    public static void changeSubEntities(Entity entity, boolean changeSubEntities)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	cap.changeSubEntities(changeSubEntities);
+    }
+    
     public static void setBaseTickrate(Entity entity, float tickrate)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
@@ -148,51 +175,45 @@ public class TickrateUtil
     	cap.setTickrate(tickrate);
     }
     
+    public static float getTickrate(Entity entity)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getTickrate();
+    }
+    
     public static void resetTickrate(Entity entity)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
     	cap.resetTickrate();
     }
     
+    public static CustomTimer getBaseTimer(Entity entity)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getBaseTimer();
+    }
+    
     public static CustomTimer getTimer(Entity entity)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
-    	if(inArea(entity.level.dimension(), entity.getBoundingBox()))
-    	{
-    		return getTimerInArea(entity.level.dimension(), entity.getBoundingBox());
-    	}
     	return cap.getCurrentTimer();
     }
     
     public static boolean hasTimer(Entity entity)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
-    	return cap.hasTimer() || inArea(entity.level.dimension(), entity.getBoundingBox());
+    	return cap.hasTimer();
     }
     
-    public static CustomTimer getTimerInArea(ResourceKey<Level> dimension, AABB boundingBox)
+    public static Pair<Boolean, Float> getArea(ResourceKey<Level> dimension, AABB boundingBox)
     {
-		for(Iterator<Pair<AABB, CustomTimer>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
+		for(Iterator<Pair<AABB, Float>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
 		{
-			Pair<AABB, CustomTimer> pair = itr.next();
+			Pair<AABB, Float> pair = itr.next();
 			AABB aabb = pair.getLeft();
-			CustomTimer timer = pair.getRight();
-			if(aabb.intersects(boundingBox))
-			{
-				return timer;
-			}
+			return Pair.of(aabb.intersects(boundingBox), pair.getRight());
 		}
-		return TickrateUtil.TIMER;
-    }
-    
-    public static boolean inArea(ResourceKey<Level> dimension, AABB boundingBox)
-    {
-		for(Iterator<Pair<AABB, CustomTimer>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
-		{
-			AABB aabb = itr.next().getLeft();
-			return aabb.intersects(boundingBox);
-		}
-		return false;
+		return Pair.of(false, 20.0F);
     }
     
 	@SuppressWarnings("unchecked")

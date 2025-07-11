@@ -11,10 +11,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import com.min01.tickrateapi.config.TimerConfig;
+import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
-import net.minecraft.Util;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -29,12 +28,6 @@ import net.minecraft.world.level.storage.WritableLevelData;
 @Mixin(ServerLevel.class)
 public abstract class MixinServerLevel extends Level
 {
-	@Unique
-	private boolean canTick;
-	
-	@Unique
-	private int tick = 0;
-    
 	protected MixinServerLevel(WritableLevelData p_220352_, ResourceKey<Level> p_220353_, RegistryAccess p_270200_, Holder<DimensionType> p_220354_, Supplier<ProfilerFiller> p_220355_, boolean p_220356_, boolean p_220357_, long p_220358_, int p_220359_)
 	{
 		super(p_220352_, p_220353_, p_270200_, p_220354_, p_220355_, p_220356_, p_220357_, p_220358_, p_220359_);
@@ -52,12 +45,9 @@ public abstract class MixinServerLevel extends Level
 				Entity entity = TickrateUtil.ENTITY_MAP.get(clazz.hashCode());
 				if(entity != null)
 				{
-					if(TickrateUtil.hasTimer(entity))
+					if(TickrateUtil.hasTimer(entity) && TickrateUtil.shouldChangeSubEntities(entity))
 					{
-						if(TickrateUtil.getTimer(entity).shouldChangeSubEntities)
-						{
-							TickrateUtil.setTickrate(p_8837_, TickrateUtil.getTimer(entity).tickrate);
-						}
+						TickrateUtil.setBaseTickrate(p_8837_, TickrateUtil.getTickrate(entity));
 					}
 					if(TickrateUtil.isExcluded(entity) && TickrateUtil.shouldExcludeSubEntities(entity))
 					{
@@ -70,12 +60,9 @@ public abstract class MixinServerLevel extends Level
 				Entity entity = TickrateUtil.ENTITY_MAP2.get(clazz.hashCode());
 				if(entity != null)
 				{
-					if(TickrateUtil.hasTimer(entity))
+					if(TickrateUtil.hasTimer(entity) && TickrateUtil.shouldChangeSubEntities(entity))
 					{
-						if(TickrateUtil.getTimer(entity).shouldChangeSubEntities)
-						{
-							TickrateUtil.setTickrate(p_8837_, TickrateUtil.getTimer(entity).tickrate);
-						}
+						TickrateUtil.setBaseTickrate(p_8837_, TickrateUtil.getTickrate(entity));
 					}
 					if(TickrateUtil.isExcluded(entity) && TickrateUtil.shouldExcludeSubEntities(entity))
 					{
@@ -98,22 +85,49 @@ public abstract class MixinServerLevel extends Level
 	@Inject(at = @At("HEAD"), method = "tick", cancellable = true)
 	private void tick(BooleanSupplier supplier, CallbackInfo ci)
 	{
-	    float tickrate = TickrateUtil.getDimensionTimer(this.dimension()).tickrate;
+		this.tickDimensionTimer();
+	}
+	
+	public void tickEntityTimer(CustomTimer timer, Entity entity)
+	{
+	    float tickrate = timer.tickrate;
 	    if(tickrate < 0.0F)
 	    {
 	        tickrate = 0.0F;
 	    }
-	    TickrateUtil.getDimensionTimer(this.dimension()).accumulator += tickrate / 20.0F;
-	    int logicTicks = (int) TickrateUtil.getDimensionTimer(this.dimension()).accumulator;
+	    timer.accumulator += tickrate / 20.0F;
+	    int logicTicks = (int) timer.accumulator;
 	    if(logicTicks >= 1) 
 	    {
-	        this.canTick = true;
-	        TickrateUtil.getDimensionTimer(this.dimension()).accumulator -= logicTicks;
-	        TickrateUtil.getDimensionTimer(this.dimension()).pendingTicks = logicTicks;
+	    	timer.canTick = true;
+	        timer.accumulator -= logicTicks;
+	        timer.pendingTicks = logicTicks;
 	    } 
 	    else
 	    {
-	        this.canTick = false;
+	    	timer.canTick = false;
+	    }
+	}
+	
+	public void tickDimensionTimer()
+	{
+		CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
+	    float tickrate = timer.tickrate;
+	    if(tickrate < 0.0F)
+	    {
+	        tickrate = 0.0F;
+	    }
+	    timer.accumulator += tickrate / 20.0F;
+	    int logicTicks = (int) timer.accumulator;
+	    if(logicTicks >= 1) 
+	    {
+	    	timer.canTick = true;
+	        timer.accumulator -= logicTicks;
+	        timer.pendingTicks = logicTicks;
+	    } 
+	    else
+	    {
+	    	timer.canTick = false;
 	    }
 	}
 	
@@ -123,18 +137,24 @@ public abstract class MixinServerLevel extends Level
 		if(TickrateUtil.hasTimer(p_8648_))
 		{
 			ci.cancel();
-			int j = TickrateUtil.getTimer(p_8648_).advanceTime(Util.getMillis());
-			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
+			CustomTimer timer = TickrateUtil.getTimer(p_8648_);
+			this.tickEntityTimer(timer, p_8648_);
+			if(timer.canTick)
 			{
-				this.tickEntities(p_8648_);
+	            int tick = timer.pendingTicks;
+	            for(int i = 0; i < tick; i++) 
+	            {
+					this.tickEntities(p_8648_);
+				}
 			}
 		}
 		else if(TickrateUtil.hasDimensionTimer(this.dimension()) && !TickrateUtil.isExcluded(p_8648_))
 		{
 			ci.cancel();
-			if(this.canTick)
+			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
+			if(timer.canTick)
 			{
-	            int tick = TickrateUtil.getDimensionTimer(this.dimension()).pendingTicks;
+	            int tick = timer.pendingTicks;
 	            for(int i = 0; i < tick; i++) 
 	            {
 	                this.tickEntities(p_8648_);

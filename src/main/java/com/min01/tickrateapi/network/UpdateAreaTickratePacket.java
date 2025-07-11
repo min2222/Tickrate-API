@@ -5,7 +5,6 @@ import java.util.function.Supplier;
 
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -54,10 +53,10 @@ public class UpdateAreaTickratePacket
 					{
 						if(message.tickrate == 20)
 						{
-							for(Iterator<Pair<AABB, CustomTimer>> itr = TickrateUtil.AABB_LIST.iterator(); itr.hasNext();)
+							for(Iterator<Pair<AABB, Float>> itr = TickrateUtil.AABB_LIST.iterator(); itr.hasNext();)
 							{
-								Pair<AABB, CustomTimer> next = itr.next();
-								if(next.getLeft() == message.aabb)
+								Pair<AABB, Float> next = itr.next();
+								if(next.getLeft().equals(message.aabb))
 								{
 									itr.remove();
 								}
@@ -65,7 +64,7 @@ public class UpdateAreaTickratePacket
 						}
 						else
 						{
-							TickrateUtil.AABB_LIST.add(Pair.of(message.aabb, new CustomTimer(message.tickrate, 0L)));
+							TickrateUtil.AABB_LIST.add(Pair.of(message.aabb, message.tickrate));
 						}
 					});
 				}

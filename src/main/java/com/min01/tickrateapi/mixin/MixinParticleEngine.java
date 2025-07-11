@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -51,6 +53,9 @@ public class MixinParticleEngine
 	@Shadow
 	@Final
 	private Queue<Particle> particlesToAdd;
+	
+	@Unique
+	private final CustomTimer timer = new CustomTimer(20.0F, 0L);
 	
 	@Inject(at = @At(value = "HEAD"), method = "tick", cancellable = true)
 	private void tick(CallbackInfo ci)
@@ -106,22 +111,23 @@ public class MixinParticleEngine
 				Particle particle = iterator.next();
 				Vec3 pos = new Vec3(particle.x, particle.y, particle.x);
 				AABB aabb = new AABB(pos, pos).inflate(1.0F);
-				if(TickrateUtil.inArea(this.level.dimension(), aabb))
+				Pair<Boolean, Float> pair = TickrateUtil.getArea(this.level.dimension(), aabb);
+				if(pair.getLeft())
 				{
 					ci.cancel();
-					CustomTimer timer = TickrateUtil.getTimerInArea(this.level.dimension(), aabb);
-					int j = timer.advanceTime(Util.getMillis());
+					this.timer.setTickrate(pair.getRight());
+					int j = this.timer.advanceTime(Util.getMillis());
 					for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 					{
 						this.tickParticle(particle);
-						if(!particle.isAlive())
+					}
+					if(!particle.isAlive())
+					{
+						particle.getParticleGroup().ifPresent((p_172289_) ->
 						{
-							particle.getParticleGroup().ifPresent((p_172289_) ->
-							{
-								this.updateCount(p_172289_, -1);
-							});
-							iterator.remove();
-						}
+							this.updateCount(p_172289_, -1);
+						});
+						iterator.remove();
 					}
 				}
 			}

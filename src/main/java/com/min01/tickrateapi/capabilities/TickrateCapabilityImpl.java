@@ -11,18 +11,22 @@ import net.minecraftforge.network.PacketDistributor;
 public class TickrateCapabilityImpl implements ITickrateCapability
 {
 	private CustomTimer baseTimer = new CustomTimer(20.0F, 0L);
-	private CustomTimer prevTimer = new CustomTimer(20.0F, 0L);
 	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
 	private Entity entity;
 	private boolean excluded;
 	private boolean excludeSubEntities;
+	private boolean shouldChangeSubEntities = true;
+	private float baseTickrate = 20.0F;
+	private float tickrate = 20.0F;
+	private int tick = 20;
 	
 	@Override
 	public CompoundTag serializeNBT() 
 	{
 		CompoundTag nbt = new CompoundTag();
-		nbt.putFloat("Tickrate", this.currentTimer.tickrate);
-		nbt.putBoolean("ChangeSubEntities", this.currentTimer.shouldChangeSubEntities);
+		nbt.putFloat("CurrentTickrate", this.currentTimer.tickrate);
+		nbt.putFloat("Tickrate", this.tickrate);
+		nbt.putBoolean("ChangeSubEntities", this.shouldChangeSubEntities);
 		nbt.putBoolean("Excluded", this.excluded);
 		nbt.putBoolean("ExcludeSubEntities", this.excludeSubEntities);
 		return nbt;
@@ -31,8 +35,9 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void deserializeNBT(CompoundTag nbt)
 	{
-		this.currentTimer.setTickrate(nbt.getFloat("Tickrate"));
-		this.currentTimer.shouldChangeSubEntities = nbt.getBoolean("ChangeSubEntities");
+		this.currentTimer.setTickrate(nbt.getFloat("CurrentTickrate"));
+		this.tickrate = nbt.getFloat("Tickrate");
+		this.shouldChangeSubEntities = nbt.getBoolean("ChangeSubEntities");
 		this.excluded = nbt.getBoolean("Excluded");
 		this.excludeSubEntities = nbt.getBoolean("ExcludeSubEntities");
 	}
@@ -46,15 +51,27 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void setBaseTickrate(float tickrate) 
 	{
+		this.tick = 0;
+		this.baseTickrate = tickrate;
+		this.tickrate = tickrate;
 		this.baseTimer.setTickrate(tickrate);
+		this.currentTimer.setTickrate(tickrate);
 		this.sendUpdatePacket(false);
 	}
 	
 	@Override
 	public void setTickrate(float tickrate) 
 	{
+		this.tick = 0;
+		this.tickrate = tickrate;
 		this.currentTimer.setTickrate(tickrate);
 		this.sendUpdatePacket(false);
+	}
+
+	@Override
+	public float getTickrate()
+	{
+		return this.tickrate;
 	}
 	
 	@Override
@@ -62,18 +79,22 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	{
 		this.currentTimer.setTickrate(20.0F);
 		this.baseTimer.setTickrate(20.0F);
+		this.baseTickrate = 20.0F;
+		this.tickrate = 20.0F;
 		this.sendUpdatePacket(true);
 	}
 
 	@Override
 	public void tick() 
 	{
-		this.currentTimer.setTickrate(this.baseTimer.tickrate);
-		
-		if(!this.prevTimer.equals(this.currentTimer))
+		if(this.baseTimer.tickrate == 20.0F)
 		{
-			this.prevTimer.setTickrate(this.currentTimer.tickrate);
+			this.tick += 1;
 		}
+		this.baseTimer.setTick(this.tick);
+		this.currentTimer.setTick(this.tick);
+		this.currentTimer.setTickrate(this.baseTimer.tickrate);
+		this.tickrate = this.baseTickrate;
 	}
 
 	@Override
@@ -107,6 +128,13 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 		this.excludeSubEntities = flag;
 		this.sendUpdatePacket(false);
 	}
+	
+	@Override
+	public void changeSubEntities(boolean flag)
+	{
+		this.shouldChangeSubEntities = flag;
+		this.sendUpdatePacket(false);
+	}
 
 	@Override
 	public boolean shouldExcludeSubEntities()
@@ -115,20 +143,27 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	}
 	
 	@Override
-	public boolean hasTimer() 
+	public boolean shouldChangeSubEntities() 
 	{
-		return true;
+		return this.shouldChangeSubEntities;
 	}
 	
 	@Override
-	public void sync(boolean excluded, boolean shouldExcludeSubEntities, float baseTickrate, float currentTickrate, boolean baseChangeSubEntities, boolean currentChangeSubEntities)
+	public boolean hasTimer() 
+	{
+		return this.tick <= 20;
+	}
+	
+	@Override
+	public void sync(boolean excluded, boolean shouldExcludeSubEntities, float baseTickrate, float currentTickrate, boolean changeSubEntities)
 	{
 		this.excluded = excluded;
 		this.excludeSubEntities = shouldExcludeSubEntities;
+		this.shouldChangeSubEntities = changeSubEntities;
 		this.baseTimer.setTickrate(baseTickrate);
-		this.baseTimer.shouldChangeSubEntities = baseChangeSubEntities;
+		this.baseTickrate = baseTickrate;
 		this.currentTimer.setTickrate(currentTickrate);
-		this.currentTimer.shouldChangeSubEntities = currentChangeSubEntities;
+		this.tickrate = currentTickrate;
 	}
 	
 	private void sendUpdatePacket(boolean reset) 
