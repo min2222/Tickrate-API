@@ -5,7 +5,7 @@ public class CustomTimer
 	public float partialTick;
 	public float tickDelta;
 	public long lastMs;
-	public final float msPerTick;
+	public float msPerTick;
 	public float tickrate;
 	public boolean shouldChangeSubEntities = true;
     public float accumulator = 0.0F;
@@ -26,5 +26,22 @@ public class CustomTimer
 		int i = (int)this.partialTick;
 		this.partialTick -= (float)i;
 		return i;
+	}
+	
+	public void setTickrate(float p_92523_)
+	{
+		this.tickrate = p_92523_;
+		this.msPerTick = 1000.0F / p_92523_;
+	}
+	
+	@Override
+	public boolean equals(Object obj)
+	{
+	    if(!(obj instanceof CustomTimer))
+	    {
+	    	return false;
+	    }
+	    CustomTimer other = (CustomTimer) obj;
+	    return this.tickrate == other.tickrate;
 	}
 }

@@ -61,12 +61,7 @@ public class UpdateTickratePacket
 						}
 						else
 						{
-							if(message.cap.hasTimer())
-							{
-								cap.setTimer(message.cap.getTimer());
-							}
-							cap.exclude(message.cap.isExcluded());
-							cap.excludeSubEntities(message.cap.shouldExcludeSubEntities());
+							cap.sync(message.cap.isExcluded(), message.cap.shouldExcludeSubEntities(), message.cap.getBaseTimer().tickrate, message.cap.getCurrentTimer().tickrate, message.cap.getBaseTimer().shouldChangeSubEntities, message.cap.getCurrentTimer().shouldChangeSubEntities);
 						}
 					});
 				}

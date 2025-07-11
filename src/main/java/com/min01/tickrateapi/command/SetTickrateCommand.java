@@ -97,7 +97,7 @@ public class SetTickrateCommand
 			}
 			else
 			{
-				TickrateUtil.setTickrate(entity, tickrate);
+				TickrateUtil.setBaseTickrate(entity, tickrate);
 				source.sendSuccess(() -> Component.literal("Changed Tickrate of " + entity.getDisplayName().getString() + " to " + tickrate), true);
 			}
 		}

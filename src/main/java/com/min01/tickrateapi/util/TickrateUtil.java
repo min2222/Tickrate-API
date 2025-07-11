@@ -35,6 +35,7 @@ import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 @Mod.EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.FORGE)
 public class TickrateUtil 
 {
+	public static final Method GET_ENTITY = ObfuscationReflectionHelper.findMethod(Level.class, "m_142646_");
 	public static final Map<Integer, Entity> ENTITY_MAP = new HashMap<>();
 	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
 	public static final Map<ResourceKey<Level>, CustomTimer> LEVEL_MAP = new HashMap<>();
@@ -134,11 +135,17 @@ public class TickrateUtil
     	cap.exclude(true);
     	cap.excludeSubEntities(excludeSubEntities);
     }
+    
+    public static void setBaseTickrate(Entity entity, float tickrate)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	cap.setBaseTickrate(tickrate);
+    }
 	
     public static void setTickrate(Entity entity, float tickrate)
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
-    	cap.setTimer(new CustomTimer(tickrate, 0L));
+    	cap.setTickrate(tickrate);
     }
     
     public static void resetTickrate(Entity entity)
@@ -154,7 +161,7 @@ public class TickrateUtil
     	{
     		return getTimerInArea(entity.level.dimension(), entity.getBoundingBox());
     	}
-    	return cap.getTimer();
+    	return cap.getCurrentTimer();
     }
     
     public static boolean hasTimer(Entity entity)
@@ -191,10 +198,9 @@ public class TickrateUtil
 	@SuppressWarnings("unchecked")
 	public static <T extends Entity> T getEntityByUUID(Level level, UUID uuid)
 	{
-		Method m = ObfuscationReflectionHelper.findMethod(Level.class, "m_142646_");
 		try 
 		{
-			LevelEntityGetter<Entity> entities = (LevelEntityGetter<Entity>) m.invoke(level);
+			LevelEntityGetter<Entity> entities = (LevelEntityGetter<Entity>) GET_ENTITY.invoke(level);
 			return (T) entities.get(uuid);
 		}
 		catch (Exception e) 
