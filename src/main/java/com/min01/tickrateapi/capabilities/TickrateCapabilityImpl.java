@@ -25,7 +25,9 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	{
 		CompoundTag nbt = new CompoundTag();
 		nbt.putFloat("CurrentTickrate", this.currentTimer.tickrate);
+		nbt.putFloat("BaseTickrate", this.baseTimer.tickrate);
 		nbt.putFloat("Tickrate", this.tickrate);
+		nbt.putFloat("Tick", this.tick);
 		nbt.putBoolean("ChangeSubEntities", this.shouldChangeSubEntities);
 		nbt.putBoolean("Excluded", this.excluded);
 		nbt.putBoolean("ExcludeSubEntities", this.excludeSubEntities);
@@ -36,7 +38,9 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	public void deserializeNBT(CompoundTag nbt)
 	{
 		this.currentTimer.setTickrate(nbt.getFloat("CurrentTickrate"));
+		this.baseTimer.setTickrate(nbt.getFloat("BaseTickrate"));
 		this.tickrate = nbt.getFloat("Tickrate");
+		this.tick = nbt.getInt("Tick");
 		this.shouldChangeSubEntities = nbt.getBoolean("ChangeSubEntities");
 		this.excluded = nbt.getBoolean("Excluded");
 		this.excludeSubEntities = nbt.getBoolean("ExcludeSubEntities");
