@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -16,7 +17,6 @@ import com.min01.tickrateapi.util.TickrateUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Timer;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraftforge.event.ForgeEventFactory;
 
 @Mixin(Minecraft.class)
@@ -94,28 +94,21 @@ public class MixinMinecraft
 		}
 	}
 
-	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"), method = "runTick")
-	private void render(GameRenderer instance, float f1, long crashreport, boolean crashreportcategory)
+	@ModifyArg(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"), index = 0)
+	private float render(float f1)
 	{
 		if(this.player != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
-				instance.render(this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick, crashreport, crashreportcategory);
+				return this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick;
 			}
 			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
 			{
-				instance.render(this.pause ? this.pausePartialTick : TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick, crashreport, crashreportcategory);
-			}
-			else
-			{
-				instance.render(f1, crashreport, crashreportcategory);
+				return this.pause ? this.pausePartialTick : TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick;
 			}
 		}
-		else
-		{
-			instance.render(f1, crashreport, crashreportcategory);
-		}
+		return f1;
 	}
 	
 	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickStart(F)V"), method = "runTick", remap = false)
