@@ -25,6 +25,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.LevelEntityGetter;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.level.LevelEvent;
@@ -203,6 +204,20 @@ public class TickrateUtil
     {
     	ITickrateCapability cap = entity.getCapability(TickrateCapabilities.TICKRATE).orElse(new TickrateCapabilityImpl());
     	return cap.hasTimer();
+    }
+    
+    public static float getTickRateAt(ResourceKey<Level> dimension, Vec3 pos)
+    {
+		for(Iterator<Pair<AABB, Float>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
+		{
+			Pair<AABB, Float> pair = itr.next();
+			AABB aabb = pair.getLeft();
+			if(aabb.contains(pos))
+			{
+				return pair.getRight();
+			}
+		}
+		return 20.0F;
     }
     
     public static Pair<Boolean, Float> getArea(ResourceKey<Level> dimension, AABB boundingBox)

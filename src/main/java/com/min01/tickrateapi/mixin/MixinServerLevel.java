@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.min01.tickrateapi.capabilities.ITickrateCapability;
+import com.min01.tickrateapi.capabilities.TickrateCapabilities;
 import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
@@ -142,6 +144,7 @@ public abstract class MixinServerLevel extends Level
 			ci.cancel();
 			CustomTimer timer = TickrateUtil.getTimer(p_8648_);
 			this.tickEntityTimer(timer, p_8648_);
+			p_8648_.getCapability(TickrateCapabilities.TICKRATE).ifPresent(ITickrateCapability::forceTick);
 			if(timer.canTick)
 			{
 	            int tick = timer.pendingTicks;

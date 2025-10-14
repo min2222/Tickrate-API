@@ -92,15 +92,24 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void tick() 
 	{
-		if(this.baseTimer.tickrate == 20.0F)
+		if(!this.entity.level.isClientSide)
 		{
-			this.tick += 1;
-			this.sendUpdatePacket(false);
+			if(this.baseTimer.tickrate == 20.0F)
+			{
+				this.tick += 1;
+				this.sendUpdatePacket(false);
+			}
 		}
 		this.baseTimer.setTick(this.tick);
 		this.currentTimer.setTick(this.tick);
 		this.currentTimer.setTickrate(this.baseTimer.tickrate);
 		this.tickrate = this.baseTickrate;
+	}
+	
+	@Override
+	public void forceTick() 
+	{
+		this.sendUpdatePacket(false);
 	}
 	
 	@Override

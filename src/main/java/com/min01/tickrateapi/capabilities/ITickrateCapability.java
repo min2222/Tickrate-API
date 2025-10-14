@@ -24,6 +24,8 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	
 	void resetTickrate();
 	
+	void forceTick();
+	
 	void tick();
 	
 	int getTick();
