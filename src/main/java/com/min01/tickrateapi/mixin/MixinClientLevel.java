@@ -32,7 +32,6 @@ import net.minecraft.world.level.storage.WritableLevelData;
 public abstract class MixinClientLevel extends Level implements ITime
 {
 	private int time;
-	private int dimensionTime;
 	private int normalTime;
 	
 	private final CustomTimer dimensionTimer = new CustomTimer(20.0F, 0L);
@@ -48,7 +47,7 @@ public abstract class MixinClientLevel extends Level implements ITime
 		if(TickrateUtil.hasDimensionTimer(this.dimension()))
 		{
 			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
-			this.dimensionTime = timer.advanceTime(Util.getMillis());
+			this.time = timer.advanceTime(Util.getMillis());
 		}
 		this.normalTime = this.dimensionTimer.advanceTime(Util.getMillis());
 	}
@@ -73,7 +72,7 @@ public abstract class MixinClientLevel extends Level implements ITime
 			if(!TickrateUtil.isExcluded(p_104640_))
 			{
 				ci.cancel();
-				int j = this.dimensionTime;
+				int j = this.time;
 				for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 				{
 					this.tickEntities(p_104640_);
