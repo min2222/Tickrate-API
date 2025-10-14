@@ -100,7 +100,7 @@ public abstract class MixinClientLevel extends Level implements ITime
 		{
 			return BuiltInRegistries.ENTITY_TYPE.getKey(p_104640_.getType()).toString();
 		});
-		if (p_104640_.canUpdate())
+		if(p_104640_.canUpdate())
 		{
 			p_104640_.tick();
 		}

@@ -76,6 +76,7 @@ public class MixinMinecraft
 			{
 				return TickrateUtil.getTimer(this.player).advanceTime(p_92526_);
 			}
+			//FIXME cause jittering to entities;
 			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
 			{
 				int j = TickrateUtil.getDimensionTimer(this.player.level.dimension()).advanceTime(p_92526_);
