@@ -16,7 +16,6 @@ import com.min01.tickrateapi.util.ITime;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
@@ -33,6 +32,7 @@ import net.minecraft.world.level.storage.WritableLevelData;
 public abstract class MixinClientLevel extends Level implements ITime
 {
 	private int time;
+	private int dimensionTime;
 	private int normalTime;
 	
 	private final CustomTimer dimensionTimer = new CustomTimer(20.0F, 0L);
@@ -45,10 +45,10 @@ public abstract class MixinClientLevel extends Level implements ITime
 	@Inject(at = @At("TAIL"), method = "tick", cancellable = true)
 	private void tick(BooleanSupplier supplier, CallbackInfo ci) 
 	{
-		if(TickrateUtil.hasDimensionTimer(this.dimension()) && TickrateUtil.isExcluded(Minecraft.getInstance().player))
+		if(TickrateUtil.hasDimensionTimer(this.dimension()))
 		{
 			CustomTimer timer = TickrateUtil.getDimensionTimer(this.dimension());
-			this.time = timer.advanceTime(Util.getMillis());
+			this.dimensionTime = timer.advanceTime(Util.getMillis());
 		}
 		this.normalTime = this.dimensionTimer.advanceTime(Util.getMillis());
 	}
@@ -58,7 +58,6 @@ public abstract class MixinClientLevel extends Level implements ITime
 	{
 		if(p_104640_ instanceof Player)
 			return;
-		Minecraft mc = Minecraft.getInstance();
 		if(TickrateUtil.hasTimer(p_104640_))
 		{
 			ci.cancel();
@@ -73,14 +72,11 @@ public abstract class MixinClientLevel extends Level implements ITime
 		{
 			if(!TickrateUtil.isExcluded(p_104640_))
 			{
-				if(TickrateUtil.isExcluded(mc.player))
+				ci.cancel();
+				int j = this.dimensionTime;
+				for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
 				{
-					ci.cancel();
-					int j = this.time;
-					for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, j); ++k)
-					{
-						this.tickEntities(p_104640_);
-					}
+					this.tickEntities(p_104640_);
 				}
 			}
 			else
