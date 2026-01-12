@@ -97,7 +97,6 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 			if(this.baseTimer.tickrate == 20.0F)
 			{
 				this.tick += 1;
-				this.sendUpdatePacket(false);
 			}
 		}
 		this.baseTimer.setTick(this.tick);
