@@ -45,13 +45,13 @@ public class MixinMinecraft
 	@Shadow
 	private float pausePartialTick;
 	
-	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickStart(F)V"))
+	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickStart(F)V"), remap = false)
 	private void renderTickStart(float timer, Operation<Void> original)
 	{
 		original.call(Minecraft.class.cast(this).getPartialTick());
 	}
 	
-	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickEnd(F)V"))
+	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickEnd(F)V"), remap = false)
 	private void renderTickEnd(float timer, Operation<Void> original)
 	{
 		original.call(Minecraft.class.cast(this).getPartialTick());
@@ -210,7 +210,7 @@ public class MixinMinecraft
 		}
 	}
 	
-	@Inject(method = "getPartialTick", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "getPartialTick", at = @At("HEAD"), cancellable = true, remap = false)
 	private void modify_getPartialTick(CallbackInfoReturnable<Float> cir) 
 	{
 		if(this.level != null && this.player != null)

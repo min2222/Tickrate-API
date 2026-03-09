@@ -40,19 +40,19 @@ public class MixinMinecraftServer
 	@Shadow
 	private ProfilerFiller profiler;
 
-	@Shadow
+	@Shadow(remap = false)
 	private Map<ResourceKey<Level>, long[]> perWorldTickTimes;
 	
 	@Shadow
 	private int tickCount;
-	
-	@Shadow
+
+	@Shadow(remap = false)
 	private int worldArrayMarker = 0;
 	
-	@Shadow
+	@Shadow(remap = false)
 	private int worldArrayLast = -1;
-	
-	@Shadow
+
+	@Shadow(remap = false)
 	private ServerLevel[] worldArray;
 	
     @Inject(method = "runServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;tickServer(Ljava/util/function/BooleanSupplier;)V", shift = At.Shift.AFTER))
@@ -114,7 +114,7 @@ public class MixinMinecraftServer
     	}
     }
 
-	@Inject(method = "getWorldArray", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "getWorldArray", at = @At("HEAD"), cancellable = true, remap = false)
 	private void getWorldArray(CallbackInfoReturnable<ServerLevel[]> cir)
 	{
 		if(this.worldArrayMarker == this.worldArrayLast && this.worldArray != null)
