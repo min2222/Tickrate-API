@@ -17,7 +17,7 @@ license="GPLv3 license"
 # The modid of the mod
 modId="tickrateapi" #mandatory
 # The version number of the mod
-version="4.0.0" #mandatory
+version="5.0.0" #mandatory
 # A display name for the mod
 displayName="Tickrate API" #mandatory
 # A URL to query for updates for this mod. See the JSON update specification https://docs.minecraftforge.net/en/latest/misc/updatechecker/
@@ -39,7 +39,7 @@ authors="min01" #optional
 #displayTest="MATCH_VERSION" # MATCH_VERSION is the default if nothing is specified (#optional)
 
 # The description text for the mod (multi line!) (#mandatory)
-description='''allow to change tickrate of game.'''
+description='''Allow to change tickrate of game.'''
 # A dependency - use the . to indicate dependency for a specific modid. Dependencies are optional.
 [[dependencies.tickrateapi]] #optional
     # the modid of the dependency

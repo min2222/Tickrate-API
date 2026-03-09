@@ -24,13 +24,12 @@ public class UpdateAreaTickratePacket
 		this.tickrate = tickrate;
 	}
 
-	public UpdateAreaTickratePacket(FriendlyByteBuf buf)
+	public static UpdateAreaTickratePacket read(FriendlyByteBuf buf)
 	{
-		this.aabb = new AABB(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble());
-		this.tickrate = buf.readFloat();
+		return new UpdateAreaTickratePacket(new AABB(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble()), buf.readFloat());
 	}
 
-	public void encode(FriendlyByteBuf buf)
+	public void write(FriendlyByteBuf buf)
 	{
 		buf.writeDouble(this.aabb.minX);
 		buf.writeDouble(this.aabb.minY);
@@ -41,36 +40,33 @@ public class UpdateAreaTickratePacket
 		buf.writeFloat(this.tickrate);
 	}
 	
-	public static class Handler 
+	public static boolean handle(UpdateAreaTickratePacket message, Supplier<NetworkEvent.Context> ctx) 
 	{
-		public static boolean onMessage(UpdateAreaTickratePacket message, Supplier<NetworkEvent.Context> ctx) 
+		ctx.get().enqueueWork(() ->
 		{
-			ctx.get().enqueueWork(() ->
+			if(ctx.get().getDirection().getReceptionSide().isClient())
 			{
-				if(ctx.get().getDirection().getReceptionSide().isClient())
+				LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
 				{
-					LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
+					if(message.tickrate == 20)
 					{
-						if(message.tickrate == 20)
+						for(Iterator<Pair<AABB, Float>> itr = TickrateUtil.AABB_LIST.iterator(); itr.hasNext();)
 						{
-							for(Iterator<Pair<AABB, Float>> itr = TickrateUtil.AABB_LIST.iterator(); itr.hasNext();)
+							Pair<AABB, Float> next = itr.next();
+							if(next.getLeft().equals(message.aabb))
 							{
-								Pair<AABB, Float> next = itr.next();
-								if(next.getLeft().equals(message.aabb))
-								{
-									itr.remove();
-								}
+								itr.remove();
 							}
 						}
-						else
-						{
-							TickrateUtil.AABB_LIST.add(Pair.of(message.aabb, message.tickrate));
-						}
-					});
-				}
-			});
-			ctx.get().setPacketHandled(true);
-			return true;
-		}
+					}
+					else
+					{
+						TickrateUtil.AABB_LIST.add(Pair.of(message.aabb, message.tickrate));
+					}
+				});
+			}
+		});
+		ctx.get().setPacketHandled(true);
+		return true;
 	}
 }

@@ -1,13 +1,12 @@
 package com.min01.tickrateapi.mixin;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
-import com.min01.tickrateapi.capabilities.TickrateCapabilities;
+import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.world.entity.Entity;
@@ -15,16 +14,16 @@ import net.minecraft.world.entity.Entity;
 @Mixin(Entity.class)
 public class MixinEntity 
 {
-	@Inject(method = "tick", at = @At("HEAD"))
+	@Inject(method = "tick", at = @At("TAIL"))
 	private void tick(CallbackInfo ci) 
 	{
 		Entity entity = Entity.class.cast(this);
-		entity.getCapability(TickrateCapabilities.TICKRATE).ifPresent(ITickrateCapability::tick);
+		entity.getCapability(TickrateCapabilityImpl.TICKRATE).ifPresent(ITickrateCapability::tick);
 		
-		Pair<Boolean, Float> pair = TickrateUtil.getArea(entity.level.dimension(), entity.getBoundingBox());
-		if(pair.getLeft())
+		float tickrate = TickrateUtil.getArea(entity.level.dimension(), entity.getBoundingBox(), entity.position());
+		if(tickrate != 20.0F || TickrateUtil.hasDimensionTimer(entity.level.dimension()))
 		{
-			TickrateUtil.setTickrate(entity, pair.getRight());
+			TickrateUtil.setTickrate(entity, tickrate);
 		}
 	}
 }

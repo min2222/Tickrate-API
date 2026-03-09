@@ -1,160 +1,231 @@
 package com.min01.tickrateapi.mixin;
 
+import java.util.function.BooleanSupplier;
+
 import javax.annotation.Nullable;
 
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.min01.tickrateapi.config.TimerConfig;
+import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Timer;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.sounds.MusicManager;
+import net.minecraft.client.sounds.SoundManager;
 
-@Mixin(Minecraft.class)
+@Mixin(value = Minecraft.class, priority = -10000)
 public class MixinMinecraft
 {
+	@Nullable
+	@Shadow
+	public LocalPlayer player;
+	
+	@Nullable
+	@Shadow
+	public ClientLevel level;
+	
 	@Shadow
 	private volatile boolean pause;
 
 	@Shadow
 	private float pausePartialTick;
-
-	@Nullable
-	@Shadow
-	public LocalPlayer player;
 	
-	@Final
-	@Shadow
-	private Timer timer;
-
-	@Inject(at = @At("HEAD"), method = "getFrameTime", cancellable = true)
-	private void getFrameTime(CallbackInfoReturnable<Float> cir) 
+	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickStart(F)V"))
+	private void renderTickStart(float timer, Operation<Void> original)
 	{
-		if(this.player != null)
-		{
-			if(TickrateUtil.hasTimer(this.player))
-			{
-				cir.setReturnValue(TickrateUtil.getTimer(this.player).partialTick);
-			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
-			{
-				cir.setReturnValue(TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick);
-			}
-		}
+		original.call(Minecraft.class.cast(this).getPartialTick());
 	}
 	
-	@Inject(at = @At("HEAD"), method = "getDeltaFrameTime", cancellable = true)
-	private void getDeltaFrameTime(CallbackInfoReturnable<Float> cir) 
+	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickEnd(F)V"))
+	private void renderTickEnd(float timer, Operation<Void> original)
 	{
-		if(this.player != null)
-		{
-			if(TickrateUtil.hasTimer(this.player))
-			{
-				cir.setReturnValue(TickrateUtil.getTimer(this.player).tickDelta);
-			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
-			{
-				cir.setReturnValue(TickrateUtil.getDimensionTimer(this.player.level.dimension()).tickDelta);
-			}
-		}
+		original.call(Minecraft.class.cast(this).getPartialTick());
 	}
-
-	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Timer;advanceTime(J)I"), method = "runTick")
-	private int advanceTime(Timer instance, long p_92526_)
+	
+	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"))
+	private void renderGame(GameRenderer instance, float f1, long crashreport, boolean crashreportcategory, Operation<Void> original)
 	{
-		if(this.player != null)
+		original.call(instance, Minecraft.class.cast(this).getPartialTick(), crashreport, crashreportcategory);
+	}
+	
+	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Timer;advanceTime(J)I"))
+	private int advanceTime(Timer instance, long pGameTime, Operation<Integer> original)
+	{
+		if(this.level != null && this.player != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
-				return TickrateUtil.getTimer(this.player).advanceTime(p_92526_);
-			}
-			//FIXME cause jittering to entities;
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
-			{
-				int j = TickrateUtil.getDimensionTimer(this.player.level.dimension()).advanceTime(p_92526_);
+				CustomTimer playerTimer = TickrateUtil.getTimer(this.player);
+				int j = playerTimer.advanceTime(pGameTime);
+				playerTimer.advancedTime = j;
 				return j;
 			}
-			else
+			if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
 			{
-				return instance.advanceTime(p_92526_);
+				CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+				int j = dimensionTimer.advanceTime(Util.getMillis());
+				dimensionTimer.advancedTime = j;
+				return j;
 			}
 		}
-		else
-		{
-			return instance.advanceTime(p_92526_);
-		}
-	}
-
-	@ModifyArg(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"), index = 0)
-	private float render(float f1)
-	{
-		if(this.player != null)
-		{
-			if(TickrateUtil.hasTimer(this.player))
-			{
-				return this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick;
-			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
-			{
-				return this.pause ? this.pausePartialTick : TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick;
-			}
-		}
-		return f1;
+		return original.call(instance, pGameTime);
 	}
 	
-	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickStart(F)V"), method = "runTick", remap = false)
-	private void onRenderTickStart(float timer)
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;tick(Ljava/util/function/BooleanSupplier;)V"))
+	private void tickLevel(ClientLevel instance, BooleanSupplier pHasTimeLeft, Operation<Void> original)
 	{
-		if(this.player != null)
+		if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance, pHasTimeLeft);
+			}
+			return;
+		}
+		original.call(instance, pHasTimeLeft);
+	}
+	
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;tick()V"))
+	private void tickGameRenderer(GameRenderer instance, Operation<Void> original)
+	{
+		if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance);
+			}
+			return;
+		}
+		original.call(instance);
+	}
+	
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;tick()V"))
+	private void tickLevelRenderer(LevelRenderer instance, Operation<Void> original)
+	{
+		if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance);
+			}
+			return;
+		}
+		original.call(instance);
+	}
+	
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sounds/MusicManager;tick()V"))
+	private void tickMusicManager(MusicManager instance, Operation<Void> original)
+	{
+		if(this.level != null && TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance);
+			}
+			return;
+		}
+		original.call(instance);
+	}
+	
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/sounds/SoundManager;tick(Z)V"))
+	private void tickSoundManager(SoundManager instance, boolean pIsGamePaused, Operation<Void> original)
+	{
+		if(this.level != null && TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance, pIsGamePaused);
+			}
+			return;
+		}
+		original.call(instance, pIsGamePaused);
+	}
+	
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/particle/ParticleEngine;tick()V"))
+	private void tickParticleEngine(ParticleEngine instance, Operation<Void> original)
+	{
+		if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance);
+			}
+			return;
+		}
+		original.call(instance);
+	}
+	
+	@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/texture/TextureManager;tick()V"))
+	private void tickTextureManager(TextureManager instance, Operation<Void> original)
+	{
+		if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+		{
+			CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+			for(int k = 0; k < Math.min(TimerConfig.disableTickrateLimit.get() ? 500 : 10, dimensionTimer.advancedTime); ++k)
+			{
+				original.call(instance);
+			}
+			return;
+		}
+		original.call(instance);
+	}
+	
+	@Inject(method = "getFrameTime", at = @At("HEAD"), cancellable = true)
+	private void modify_getFrameTime(CallbackInfoReturnable<Float> cir) 
+	{
+		if(this.level != null && this.player != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
-				ForgeEventFactory.onRenderTickStart(this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick);
+				CustomTimer playerTimer = TickrateUtil.getTimer(this.player);
+				cir.setReturnValue(playerTimer.partialTick);
+				return;
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
 			{
-				ForgeEventFactory.onRenderTickStart(this.pause ? this.pausePartialTick : TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick);
+				CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+				cir.setReturnValue(dimensionTimer.partialTick);
 			}
-			else
-			{
-				ForgeEventFactory.onRenderTickStart(timer);
-			}
-		}
-		else
-		{
-			ForgeEventFactory.onRenderTickStart(timer);
 		}
 	}
-
-	@Redirect(at = @At(value = "INVOKE", target = "Lnet/minecraftforge/event/ForgeEventFactory;onRenderTickEnd(F)V"), method = "runTick", remap = false)
-	private void onRenderTickEnd(float timer)
+	
+	@Inject(method = "getPartialTick", at = @At("HEAD"), cancellable = true)
+	private void modify_getPartialTick(CallbackInfoReturnable<Float> cir) 
 	{
-		if(this.player != null)
+		if(this.level != null && this.player != null)
 		{
 			if(TickrateUtil.hasTimer(this.player))
 			{
-				ForgeEventFactory.onRenderTickEnd(this.pause ? this.pausePartialTick : TickrateUtil.getTimer(this.player).partialTick);
+				CustomTimer playerTimer = TickrateUtil.getTimer(this.player);
+				cir.setReturnValue(this.pause ? this.pausePartialTick : playerTimer.partialTick);
+				return;
 			}
-			else if(TickrateUtil.hasDimensionTimer(this.player.level.dimension()) && !TickrateUtil.isExcluded(this.player))
+			if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(this.player))
 			{
-				ForgeEventFactory.onRenderTickEnd(this.pause ? this.pausePartialTick : TickrateUtil.getDimensionTimer(this.player.level.dimension()).partialTick);
+				CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(this.level.dimension());
+				cir.setReturnValue(this.pause ? this.pausePartialTick : dimensionTimer.partialTick);
 			}
-			else
-			{
-				ForgeEventFactory.onRenderTickEnd(timer);
-			}
-		}
-		else
-		{
-			ForgeEventFactory.onRenderTickEnd(timer);
 		}
 	}
 }

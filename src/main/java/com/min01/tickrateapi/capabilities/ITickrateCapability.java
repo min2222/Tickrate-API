@@ -7,12 +7,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.common.capabilities.AutoRegisterCapability;
-import net.minecraftforge.common.util.INBTSerializable;
+import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 
 @AutoRegisterCapability
-public interface ITickrateCapability extends INBTSerializable<CompoundTag>
+public interface ITickrateCapability extends ICapabilitySerializable<CompoundTag>
 {
-	ResourceLocation ID = new ResourceLocation(TickrateAPI.MODID, "entity_tickrate");
+	ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TickrateAPI.MODID, "entity_tickrate");
 
 	void setEntity(Entity entity);
 	
@@ -24,11 +24,7 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	
 	void resetTickrate();
 	
-	void forceTick();
-	
 	void tick();
-	
-	int getTick();
 
 	CustomTimer getBaseTimer();
 	
@@ -48,5 +44,5 @@ public interface ITickrateCapability extends INBTSerializable<CompoundTag>
 	
 	boolean hasTimer();
 	
-	void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate, int tick);
+	void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate);
 }

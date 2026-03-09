@@ -2,17 +2,18 @@
 	"required": true,
 	"minVersion": "0.8",
 	"package": "com.min01.tickrateapi.mixin",
+	"plugin": "com.min01.tickrateapi.misc.TickrateMixinPlugin",
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
+		"MixinLevel",
 		"MixinServerLevel",
+		"MixinMinecraftServer",
 		"MixinEntity"
 	],
 	"client": [
-		"MixinClientLevel",
 		"MixinLevelRenderer",
 		"MixinMinecraft",
-		"MixinParticleEngine",
-		"MixinTextureManager"
+		"MixinParticleEngine"
 	],
 	"server": [
 	],

@@ -1,65 +1,30 @@
 package com.min01.tickrateapi.mixin;
 
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.min01.tickrateapi.util.CustomTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 
 @Mixin(LevelRenderer.class)
-public class MixinLevelRenderer
+public class MixinLevelRenderer 
 {
-    @Shadow
-    private ClientLevel level;
-    
-    @Final
-    @Shadow
-    private Minecraft minecraft;
-    
-    @Final
-    @Shadow
-    private EntityRenderDispatcher entityRenderDispatcher;
-  
-    @Inject(at = @At("HEAD"), method = "renderEntity", cancellable = true)
-    private void renderEntity(Entity p_109518_, double p_109519_, double p_109520_, double p_109521_, float p_109522_, PoseStack p_109523_, MultiBufferSource p_109524_, CallbackInfo ci)
-    {
-		if(TickrateUtil.hasTimer(p_109518_))
+	@WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;renderEntity(Lnet/minecraft/world/entity/Entity;DDDFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;)V"))
+	private void renderEntity(LevelRenderer instance, Entity pEntity, double pCamX, double pCamY, double pCamZ, float pPartialTick, PoseStack pPoseStack, MultiBufferSource pBufferSource, Operation<Void> original)
+	{
+		if(TickrateUtil.hasTimer(pEntity))
 		{
-	    	ci.cancel();
-			CustomTimer timer = TickrateUtil.getTimer(p_109518_);
-			float partialTick = timer.partialTick;
-			double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
-	    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
-	    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
-	    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
-	    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
+			CustomTimer timer = TickrateUtil.getTimer(pEntity);
+			original.call(instance, pEntity, pCamX, pCamY, pCamZ, timer.partialTick, pPoseStack, pBufferSource);
+			return;
 		}
-		else if(TickrateUtil.hasDimensionTimer(this.level.dimension()) && !TickrateUtil.isExcluded(p_109518_))
-		{
-			if(p_109518_ instanceof Player)
-				return;
-	    	ci.cancel();
-			CustomTimer timer = TickrateUtil.getDimensionTimer(p_109518_.level.dimension());
-			float partialTick = timer.partialTick;
-			double d0 = Mth.lerp((double)partialTick, p_109518_.xOld, p_109518_.getX());	
-	    	double d1 = Mth.lerp((double)partialTick, p_109518_.yOld, p_109518_.getY());
-	    	double d2 = Mth.lerp((double)partialTick, p_109518_.zOld, p_109518_.getZ());
-	    	float f = Mth.lerp(partialTick, p_109518_.yRotO, p_109518_.getYRot());
-	    	this.entityRenderDispatcher.render(p_109518_, d0 - p_109519_, d1 - p_109520_, d2 - p_109521_, f, partialTick, p_109523_, p_109524_, this.entityRenderDispatcher.getPackedLightCoords(p_109518_, partialTick));
-		}
-    }
+		original.call(instance, pEntity, pCamX, pCamY, pCamZ, pPartialTick, pPoseStack, pBufferSource);
+	}
 }

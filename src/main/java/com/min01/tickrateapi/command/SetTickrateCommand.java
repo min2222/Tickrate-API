@@ -25,25 +25,25 @@ public class SetTickrateCommand
 		p_214446_.register(Commands.literal("setTickrate").requires((p_137777_) -> 
 		{
 			return p_137777_.hasPermission(2);
-		}).then(Commands.literal("entity").then(Commands.argument("targets", EntityArgument.entities()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes((p_137810_) ->
+		}).then(Commands.literal("entity").then(Commands.argument("targets", EntityArgument.entities()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes((ctx) ->
 		{
-			return setEntityTickrate(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), FloatArgumentType.getFloat(p_137810_, "tickrate"));
-		})))).then(Commands.literal("dimension").then(Commands.argument("world", DimensionArgument.dimension()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes(p_137810_ -> 
+			return setEntityTickrate(ctx.getSource(), EntityArgument.getEntities(ctx, "targets"), FloatArgumentType.getFloat(ctx, "tickrate"));
+		})))).then(Commands.literal("dimension").then(Commands.argument("world", DimensionArgument.dimension()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes(ctx -> 
 		{
-			return setLevelTickrate(p_137810_.getSource(), DimensionArgument.getDimension(p_137810_, "world"), FloatArgumentType.getFloat(p_137810_, "tickrate"));
-		})))).then(Commands.literal("exclude").then(Commands.argument("targets", EntityArgument.entities()).then(Commands.argument("exclude", BoolArgumentType.bool()).executes(p_137810_ -> 
+			return setLevelTickrate(ctx.getSource(), DimensionArgument.getDimension(ctx, "world"), FloatArgumentType.getFloat(ctx, "tickrate"));
+		})))).then(Commands.literal("exclude").then(Commands.argument("targets", EntityArgument.entities()).then(Commands.argument("exclude", BoolArgumentType.bool()).executes(ctx -> 
 		{
-			return excludeEntities(p_137810_.getSource(), EntityArgument.getEntities(p_137810_, "targets"), BoolArgumentType.getBool(p_137810_, "exclude"));
-		})))).then(Commands.literal("area").then(Commands.argument("world", DimensionArgument.dimension()).then(Commands.argument("pos1", Vec3Argument.vec3()).then(Commands.argument("pos2", Vec3Argument.vec3()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes(p_137810_ -> 
+			return excludeEntities(ctx.getSource(), EntityArgument.getEntities(ctx, "targets"), BoolArgumentType.getBool(ctx, "exclude"));
+		})))).then(Commands.literal("area").then(Commands.argument("world", DimensionArgument.dimension()).then(Commands.argument("pos1", Vec3Argument.vec3()).then(Commands.argument("pos2", Vec3Argument.vec3()).then(Commands.argument("tickrate", FloatArgumentType.floatArg()).executes(ctx -> 
 		{
-			return addTickrateArea(p_137810_.getSource(), DimensionArgument.getDimension(p_137810_, "world"), Vec3Argument.getVec3(p_137810_, "pos1"), Vec3Argument.getVec3(p_137810_, "pos2"), FloatArgumentType.getFloat(p_137810_, "tickrate"));
+			return addTickrateArea(ctx.getSource(), DimensionArgument.getDimension(ctx, "world"), Vec3Argument.getVec3(ctx, "pos1"), Vec3Argument.getVec3(ctx, "pos2"), FloatArgumentType.getFloat(ctx, "tickrate"));
 		})))))));
 	}
 	
 	private static int addTickrateArea(CommandSourceStack source, ServerLevel serverLevel, Vec3 pos1, Vec3 pos2, float tickrate)
 	{
 		TickrateUtil.addTickrateArea(serverLevel.dimension(), new AABB(pos1, pos2), tickrate);
-		if(tickrate == 20)
+		if(tickrate == 20 && !TickrateUtil.hasDimensionTimer(serverLevel.dimension()))
 		{
 			source.sendSuccess(() -> Component.literal("Removed tickrate area in " + serverLevel.dimension().location().toString()), true);
 		}

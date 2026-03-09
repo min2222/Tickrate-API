@@ -1,33 +1,42 @@
 package com.min01.tickrateapi.capabilities;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.min01.tickrateapi.network.TickrateNetwork;
 import com.min01.tickrateapi.network.UpdateTickratePacket;
 import com.min01.tickrateapi.util.CustomTimer;
 
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.CapabilityManager;
+import net.minecraftforge.common.capabilities.CapabilityToken;
+import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.network.PacketDistributor;
 
 public class TickrateCapabilityImpl implements ITickrateCapability
 {
+	public static final Capability<ITickrateCapability> TICKRATE = CapabilityManager.get(new CapabilityToken<>() {});
+	
 	private CustomTimer baseTimer = new CustomTimer(20.0F, 0L);
 	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
+	
+	private float tickrate;
+	
 	private Entity entity;
 	private boolean excluded;
 	private boolean excludeSubEntities;
 	private boolean shouldChangeSubEntities = true;
-	private float baseTickrate = 20.0F;
-	private float tickrate = 20.0F;
-	private int tick = 21;
+    private boolean isChangingTickrate = false;
 	
 	@Override
 	public CompoundTag serializeNBT() 
 	{
 		CompoundTag nbt = new CompoundTag();
-		nbt.putFloat("CurrentTickrate", this.currentTimer.tickrate);
+		nbt.putFloat("CurrentTickrate", this.tickrate);
 		nbt.putFloat("BaseTickrate", this.baseTimer.tickrate);
-		nbt.putFloat("Tickrate", this.tickrate);
-		nbt.putFloat("Tick", this.tick);
 		nbt.putBoolean("ChangeSubEntities", this.shouldChangeSubEntities);
 		nbt.putBoolean("Excluded", this.excluded);
 		nbt.putBoolean("ExcludeSubEntities", this.excludeSubEntities);
@@ -37,10 +46,8 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void deserializeNBT(CompoundTag nbt)
 	{
-		this.currentTimer.setTickrate(nbt.getFloat("CurrentTickrate"));
+		this.tickrate = nbt.getFloat("CurrentTickrate");
 		this.baseTimer.setTickrate(nbt.getFloat("BaseTickrate"));
-		this.tickrate = nbt.getFloat("Tickrate");
-		this.tick = nbt.getInt("Tick");
 		this.shouldChangeSubEntities = nbt.getBoolean("ChangeSubEntities");
 		this.excluded = nbt.getBoolean("Excluded");
 		this.excludeSubEntities = nbt.getBoolean("ExcludeSubEntities");
@@ -55,25 +62,18 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void setBaseTickrate(float tickrate) 
 	{
-		this.tick = 0;
-		this.baseTickrate = tickrate;
 		this.tickrate = tickrate;
 		this.baseTimer.setTickrate(tickrate);
-		this.currentTimer.setTickrate(tickrate);
-		this.sendUpdatePacket(false);
 	}
 	
 	@Override
 	public void setTickrate(float tickrate) 
 	{
-		this.tick = 0;
 		this.tickrate = tickrate;
-		this.currentTimer.setTickrate(tickrate);
-		this.sendUpdatePacket(false);
 	}
-
+	
 	@Override
-	public float getTickrate()
+	public float getTickrate() 
 	{
 		return this.tickrate;
 	}
@@ -81,40 +81,32 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void resetTickrate()
 	{
-		this.currentTimer.setTickrate(20.0F);
-		this.baseTimer.setTickrate(20.0F);
-		this.baseTickrate = 20.0F;
 		this.tickrate = 20.0F;
-		this.tick = 21;
-		this.sendUpdatePacket(true);
+		this.baseTimer.setTickrate(20.0F);
 	}
 
 	@Override
 	public void tick() 
 	{
-		if(!this.entity.level.isClientSide)
-		{
-			if(this.baseTimer.tickrate == 20.0F)
-			{
-				this.tick += 1;
-			}
-		}
-		this.baseTimer.setTick(this.tick);
-		this.currentTimer.setTick(this.tick);
 		this.currentTimer.setTickrate(this.baseTimer.tickrate);
-		this.tickrate = this.baseTickrate;
-	}
-	
-	@Override
-	public void forceTick() 
-	{
-		this.sendUpdatePacket(false);
-	}
-	
-	@Override
-	public int getTick()
-	{
-		return this.tick;
+        this.isChangingTickrate = true;
+        
+        try 
+        {
+            if(this.isChangingTickrate) 
+            {
+            	this.currentTimer.setTickrate(this.tickrate);
+            }
+        }
+        finally
+        {
+        	if(this.baseTimer.tickrate == 20.0F)
+        	{
+        		this.resetTickrate();
+        	}
+        	this.isChangingTickrate = false;
+        }
+		this.sendUpdatePacket();
 	}
 
 	@Override
@@ -133,7 +125,6 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	public void exclude(boolean flag) 
 	{
 		this.excluded = flag;
-		this.sendUpdatePacket(false);
 	}
 	
 	@Override
@@ -146,14 +137,12 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	public void excludeSubEntities(boolean flag)
 	{
 		this.excludeSubEntities = flag;
-		this.sendUpdatePacket(false);
 	}
 	
 	@Override
 	public void changeSubEntities(boolean flag)
 	{
 		this.shouldChangeSubEntities = flag;
-		this.sendUpdatePacket(false);
 	}
 
 	@Override
@@ -171,27 +160,30 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public boolean hasTimer() 
 	{
-		return this.tick <= 20;
+		return this.tickrate != 20.0F;
 	}
 	
 	@Override
-	public void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate, int tick)
+	public void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate)
 	{
 		this.excluded = excluded;
 		this.excludeSubEntities = excludeSubEntities;
 		this.shouldChangeSubEntities = changeSubEntities;
 		this.baseTimer.setTickrate(baseTickrate);
-		this.baseTickrate = baseTickrate;
-		this.currentTimer.setTickrate(currentTickrate);
 		this.tickrate = currentTickrate;
-		this.tick = tick;
 	}
 	
-	private void sendUpdatePacket(boolean reset) 
+	private void sendUpdatePacket() 
 	{
 		if(!this.entity.level.isClientSide)
 		{
-			TickrateNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> this.entity), new UpdateTickratePacket(this.entity.getUUID(), this, reset));
+			TickrateNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> this.entity), new UpdateTickratePacket(this.entity.getUUID(), this));
 		}
+	}
+	
+	@Override
+	public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) 
+	{
+		return TICKRATE.orEmpty(cap, LazyOptional.of(() -> this));
 	}
 }

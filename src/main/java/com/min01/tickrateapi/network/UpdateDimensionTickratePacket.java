@@ -24,44 +24,40 @@ public class UpdateDimensionTickratePacket
 		this.tickrate = tickrate;
 	}
 
-	public UpdateDimensionTickratePacket(FriendlyByteBuf buf)
+	public static UpdateDimensionTickratePacket read(FriendlyByteBuf buf)
 	{
-		this.dimension = buf.readResourceKey(Registries.DIMENSION);
-		this.tickrate = buf.readFloat();
+		return new UpdateDimensionTickratePacket(buf.readResourceKey(Registries.DIMENSION), buf.readFloat());
 	}
 
-	public void encode(FriendlyByteBuf buf)
+	public void write(FriendlyByteBuf buf)
 	{
 		buf.writeResourceKey(this.dimension);
 		buf.writeFloat(this.tickrate);
 	}
 	
-	public static class Handler 
+	public static boolean handle(UpdateDimensionTickratePacket message, Supplier<NetworkEvent.Context> ctx) 
 	{
-		public static boolean onMessage(UpdateDimensionTickratePacket message, Supplier<NetworkEvent.Context> ctx) 
+		ctx.get().enqueueWork(() ->
 		{
-			ctx.get().enqueueWork(() ->
+			if(ctx.get().getDirection().getReceptionSide().isClient())
 			{
-				if(ctx.get().getDirection().getReceptionSide().isClient())
+				LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
 				{
-					LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
+					if(message.tickrate == 20)
 					{
-						if(message.tickrate == 20)
+						if(TickrateUtil.LEVEL_MAP.containsKey(message.dimension))
 						{
-							if(TickrateUtil.LEVEL_MAP.containsKey(message.dimension))
-							{
-								TickrateUtil.LEVEL_MAP.remove(message.dimension);
-							}
+							TickrateUtil.LEVEL_MAP.remove(message.dimension);
 						}
-						else
-						{
-							TickrateUtil.LEVEL_MAP.put(message.dimension, new CustomTimer(message.tickrate, 0L));
-						}
-					});
-				}
-			});
-			ctx.get().setPacketHandled(true);
-			return true;
-		}
+					}
+					else
+					{
+						TickrateUtil.LEVEL_MAP.put(message.dimension, new CustomTimer(message.tickrate, 0L));
+					}
+				});
+			}
+		});
+		ctx.get().setPacketHandled(true);
+		return true;
 	}
 }

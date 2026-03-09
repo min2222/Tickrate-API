@@ -14,14 +14,14 @@ public class TickrateNetwork
 	public static int ID;
     private static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel CHANNEL = 
-    		NetworkRegistry.newSimpleChannel(new ResourceLocation(TickrateAPI.MODID, "tickrateapi"), 
+    		NetworkRegistry.newSimpleChannel(ResourceLocation.fromNamespaceAndPath(TickrateAPI.MODID, TickrateAPI.MODID), 
     				() -> PROTOCOL_VERSION, PROTOCOL_VERSION::equals, PROTOCOL_VERSION::equals);
 	
 	public static void registerMessages()
 	{
-		CHANNEL.registerMessage(ID++, UpdateTickratePacket.class, UpdateTickratePacket::encode, UpdateTickratePacket::new, UpdateTickratePacket.Handler::onMessage);
-		CHANNEL.registerMessage(ID++, UpdateDimensionTickratePacket.class, UpdateDimensionTickratePacket::encode, UpdateDimensionTickratePacket::new, UpdateDimensionTickratePacket.Handler::onMessage);
-		CHANNEL.registerMessage(ID++, UpdateAreaTickratePacket.class, UpdateAreaTickratePacket::encode, UpdateAreaTickratePacket::new, UpdateAreaTickratePacket.Handler::onMessage);
+		CHANNEL.registerMessage(ID++, UpdateTickratePacket.class, UpdateTickratePacket::write, UpdateTickratePacket::read, UpdateTickratePacket::handle);
+		CHANNEL.registerMessage(ID++, UpdateDimensionTickratePacket.class, UpdateDimensionTickratePacket::write, UpdateDimensionTickratePacket::read, UpdateDimensionTickratePacket::handle);
+		CHANNEL.registerMessage(ID++, UpdateAreaTickratePacket.class, UpdateAreaTickratePacket::write, UpdateAreaTickratePacket::read, UpdateAreaTickratePacket::handle);
 	}
 	
     public static <MSG> void sendToServer(MSG message) 
