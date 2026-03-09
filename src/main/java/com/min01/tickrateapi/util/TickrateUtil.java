@@ -29,7 +29,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent.LevelTickEvent;
 import net.minecraftforge.event.TickEvent.Phase;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -40,8 +39,6 @@ import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 public class TickrateUtil 
 {
 	public static final Method GET_ENTITY = ObfuscationReflectionHelper.findMethod(Level.class, "m_142646_");
-	public static final Map<Integer, Entity> ENTITY_MAP = new HashMap<>();
-	public static final Map<Integer, Entity> ENTITY_MAP2 = new HashMap<>();
 	public static final Map<ResourceKey<Level>, CustomTimer> LEVEL_MAP = new HashMap<>();
 	public static final List<Pair<AABB, Float>> AABB_LIST = new ArrayList<>();
     public static final Map<ResourceKey<Level>, List<Entity>> EXCLUDED = new ConcurrentHashMap<>();
@@ -101,14 +98,6 @@ public class TickrateUtil
 	    		});
 	    	}
 		}
-	}
-    
-	@SubscribeEvent
-	public static void onEntityJoinLevel(EntityJoinLevelEvent event)
-	{
-		Entity entity = event.getEntity();
-		ENTITY_MAP.put(entity.getClass().hashCode(), entity);
-		ENTITY_MAP2.put(entity.getClass().getSuperclass().hashCode(), entity);
 	}
 
 	public static boolean hasDimensionTimer(ResourceKey<Level> dimension)

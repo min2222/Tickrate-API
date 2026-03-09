@@ -6,13 +6,12 @@
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
 		"MixinLevel",
-		"MixinServerLevel",
 		"MixinMinecraftServer",
 		"MixinEntity"
 	],
 	"client": [
-		"MixinLevelRenderer",
 		"MixinMinecraft",
+		"MixinLevelRenderer",
 		"MixinParticleEngine"
 	],
 	"server": [
