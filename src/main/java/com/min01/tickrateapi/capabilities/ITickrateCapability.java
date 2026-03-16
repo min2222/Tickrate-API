@@ -24,6 +24,8 @@ public interface ITickrateCapability extends ICapabilitySerializable<CompoundTag
 	
 	void resetTickrate();
 	
+	boolean hasTimer();
+	
 	void tick();
 
 	CustomTimer getBaseTimer();
@@ -41,8 +43,6 @@ public interface ITickrateCapability extends ICapabilitySerializable<CompoundTag
 	boolean shouldExcludeSubEntities();
 	
 	boolean shouldChangeSubEntities();
-	
-	boolean hasTimer();
 	
 	void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate);
 }

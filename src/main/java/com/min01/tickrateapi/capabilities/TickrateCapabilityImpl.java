@@ -23,19 +23,15 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	private CustomTimer baseTimer = new CustomTimer(20.0F, 0L);
 	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
 	
-	private float tickrate;
-	
 	private Entity entity;
 	private boolean excluded;
 	private boolean excludeSubEntities;
 	private boolean shouldChangeSubEntities = true;
-    private boolean isChangingTickrate = false;
 	
 	@Override
 	public CompoundTag serializeNBT() 
 	{
 		CompoundTag nbt = new CompoundTag();
-		nbt.putFloat("CurrentTickrate", this.tickrate);
 		nbt.putFloat("BaseTickrate", this.baseTimer.tickrate);
 		nbt.putBoolean("ChangeSubEntities", this.shouldChangeSubEntities);
 		nbt.putBoolean("Excluded", this.excluded);
@@ -46,7 +42,6 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void deserializeNBT(CompoundTag nbt)
 	{
-		this.tickrate = nbt.getFloat("CurrentTickrate");
 		this.baseTimer.setTickrate(nbt.getFloat("BaseTickrate"));
 		this.shouldChangeSubEntities = nbt.getBoolean("ChangeSubEntities");
 		this.excluded = nbt.getBoolean("Excluded");
@@ -62,26 +57,30 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void setBaseTickrate(float tickrate) 
 	{
-		this.tickrate = tickrate;
 		this.baseTimer.setTickrate(tickrate);
 	}
 	
 	@Override
 	public void setTickrate(float tickrate) 
 	{
-		this.tickrate = tickrate;
+		this.currentTimer.setTickrate(tickrate);
 	}
 	
 	@Override
 	public float getTickrate() 
 	{
-		return this.tickrate;
+		return this.currentTimer.tickrate;
+	}
+	
+	@Override
+	public boolean hasTimer() 
+	{
+		return this.getTickrate() != 20.0F;
 	}
 	
 	@Override
 	public void resetTickrate()
 	{
-		this.tickrate = 20.0F;
 		this.baseTimer.setTickrate(20.0F);
 	}
 
@@ -89,24 +88,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	public void tick() 
 	{
 		this.currentTimer.setTickrate(this.baseTimer.tickrate);
-        this.isChangingTickrate = true;
-        
-        try 
-        {
-            if(this.isChangingTickrate) 
-            {
-            	this.currentTimer.setTickrate(this.tickrate);
-            }
-        }
-        finally
-        {
-        	if(this.baseTimer.tickrate == 20.0F)
-        	{
-        		this.resetTickrate();
-        	}
-        	this.isChangingTickrate = false;
-        }
-		this.sendUpdatePacket();
+    	this.sendUpdatePacket();
 	}
 
 	@Override
@@ -158,19 +140,12 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	}
 	
 	@Override
-	public boolean hasTimer() 
-	{
-		return this.tickrate != 20.0F;
-	}
-	
-	@Override
 	public void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate)
 	{
 		this.excluded = excluded;
 		this.excludeSubEntities = excludeSubEntities;
 		this.shouldChangeSubEntities = changeSubEntities;
 		this.baseTimer.setTickrate(baseTickrate);
-		this.tickrate = currentTickrate;
 	}
 	
 	private void sendUpdatePacket() 

@@ -79,6 +79,20 @@ public class TickrateUtil
 					EXCLUDED.keySet().removeIf(t -> !hasDimensionTimer(t));
 				}
 			}
+			for(Entity entity : getAllEntities(level))
+			{
+				if(!level.isLoaded(entity.blockPosition()))
+				{
+					continue;
+				}
+				
+				if(getTickrate(entity) > 1)
+				{
+					continue;
+				}
+				
+				entity.getCapability(TickrateCapabilityImpl.TICKRATE).ifPresent(ITickrateCapability::tick);
+			}
 		}
 	}
 	

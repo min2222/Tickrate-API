@@ -8,7 +8,7 @@ public class CustomTimer
 	public float tickDelta;
 	public long lastMs;
 	public float msPerTick;
-	public float tickrate;
+	public float tickrate = 20.0F;
     
     public int advancedTime;
     
@@ -37,6 +37,7 @@ public class CustomTimer
 	
 	public void setTickrate(float tickrate)
 	{
+		tickrate = Math.max(tickrate, 0.00001F);
 		this.tickrate = tickrate;
 		this.msPerTick = 1000.0F / tickrate;
 	}

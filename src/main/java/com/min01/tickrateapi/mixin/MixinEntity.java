@@ -18,7 +18,10 @@ public class MixinEntity
 	private void tick(CallbackInfo ci) 
 	{
 		Entity entity = Entity.class.cast(this);
-		entity.getCapability(TickrateCapabilityImpl.TICKRATE).ifPresent(ITickrateCapability::tick);
+		if(TickrateUtil.getTickrate(entity) > 1)
+		{
+			entity.getCapability(TickrateCapabilityImpl.TICKRATE).ifPresent(ITickrateCapability::tick);
+		}
 		
 		float tickrate = TickrateUtil.getArea(entity.level.dimension(), entity.getBoundingBox(), entity.position());
 		if(tickrate != 20.0F || TickrateUtil.hasDimensionTimer(entity.level.dimension()))
