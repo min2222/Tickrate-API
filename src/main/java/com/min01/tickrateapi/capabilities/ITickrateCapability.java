@@ -43,6 +43,4 @@ public interface ITickrateCapability extends ICapabilitySerializable<CompoundTag
 	boolean shouldExcludeSubEntities();
 	
 	boolean shouldChangeSubEntities();
-	
-	void sync(boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate);
 }
