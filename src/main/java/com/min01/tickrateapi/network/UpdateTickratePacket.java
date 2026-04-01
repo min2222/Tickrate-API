@@ -56,7 +56,7 @@ public class UpdateTickratePacket
 				LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
 				{
 					Entity entity = TickrateUtil.getEntityByUUID(t, message.uuid);
-					ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+					ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
 					cap.exclude(message.excluded);
 					cap.excludeSubEntities(message.excludeSubEntities);
 					cap.changeSubEntities(message.shouldChangeSubEntities);

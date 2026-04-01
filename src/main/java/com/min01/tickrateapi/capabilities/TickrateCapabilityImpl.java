@@ -23,13 +23,12 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	private CustomTimer baseTimer = new CustomTimer(20.0F, 0L);
 	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
 	
-	private Entity entity;
+	private final Entity entity;
 	private boolean excluded;
 	private boolean excludeSubEntities;
 	private boolean shouldChangeSubEntities = true;
 
-	@Override
-	public void setEntity(Entity entity) 
+	public TickrateCapabilityImpl(Entity entity)
 	{
 		this.entity = entity;
 	}

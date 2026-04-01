@@ -5,7 +5,6 @@ import com.min01.tickrateapi.util.CustomTimer;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
 import net.minecraftforge.common.capabilities.AutoRegisterCapability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 
@@ -14,8 +13,6 @@ public interface ITickrateCapability extends ICapabilitySerializable<CompoundTag
 {
 	ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TickrateAPI.MODID, "entity_tickrate");
 
-	void setEntity(Entity entity);
-	
 	void setBaseTickrate(float tickrate);
 	
 	void setTickrate(float tickrate);

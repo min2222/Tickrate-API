@@ -136,19 +136,19 @@ public class TickrateUtil
     
     public static boolean isExcluded(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.isExcluded();
     }
     
     public static boolean shouldChangeSubEntities(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.shouldChangeSubEntities();
     }
     
     public static boolean shouldExcludeSubEntities(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.shouldExcludeSubEntities();
     }
     
@@ -184,7 +184,7 @@ public class TickrateUtil
 	
     public static void includeEntity(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	cap.exclude(false);
     }
 
@@ -195,56 +195,56 @@ public class TickrateUtil
 
     public static void excludeEntity(Entity entity, boolean excludeSubEntities)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	cap.exclude(true);
     	cap.excludeSubEntities(excludeSubEntities);
     }
     
     public static void changeSubEntities(Entity entity, boolean changeSubEntities)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	cap.changeSubEntities(changeSubEntities);
     }
     
     public static void setBaseTickrate(Entity entity, float tickrate)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	cap.setBaseTickrate(tickrate);
     }
 	
     public static void setTickrate(Entity entity, float tickrate)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	cap.setTickrate(tickrate);
     }
     
     public static float getTickrate(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.getTickrate();
     }
     
     public static void resetTickrate(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	cap.resetTickrate();
     }
     
     public static CustomTimer getBaseTimer(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.getBaseTimer();
     }
     
     public static CustomTimer getTimer(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.getCurrentTimer();
     }
     
     public static boolean hasTimer(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
     	return cap.hasTimer();
     }
     
