@@ -1,58 +1,47 @@
 package com.min01.tickrateapi.world;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.min01.tickrateapi.util.CustomTimer;
+import com.min01.tickrateapi.api.TickrateArea;
+import com.min01.tickrateapi.api.TickrateDimension;
+import com.min01.tickrateapi.api.TickrateTimer;
+import com.min01.tickrateapi.network.AddTickrateAreaPacket;
+import com.min01.tickrateapi.network.RemoveTickrateAreaPacket;
+import com.min01.tickrateapi.network.TickrateNetwork;
+import com.min01.tickrateapi.network.UpdateDimensionTickratePacket;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
-import net.minecraft.world.phys.AABB;
-import net.minecraftforge.server.ServerLifecycleHooks;
 
 public class TickrateSavedData extends SavedData
 {
 	public static final String NAME = "tickrate_data";
 	
-	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
+	public final List<TickrateArea> areas = new ArrayList<>();
+	public TickrateDimension dimension = new TickrateDimension(Level.OVERWORLD, TickrateTimer.createDefault(), 1000);
 	
-	private final List<Pair<AABB, Float>> areas = new ArrayList<>();
-	
-    public static TickrateSavedData get(ResourceKey<Level> dimension)
+    public static TickrateSavedData get(ServerLevel serverLevel)
     {
-    	MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-    	if(server != null)
-    	{
-        	ServerLevel serverLevel = server.getLevel(dimension);
-            if(serverLevel != null) 
-            {
-                DimensionDataStorage storage = serverLevel.getDataStorage();
-                TickrateSavedData data = storage.computeIfAbsent(TickrateSavedData::load, TickrateSavedData::new, NAME);
-                return data;
-            }
-    	}
-        return null;
+        DimensionDataStorage storage = serverLevel.getDataStorage();
+        TickrateSavedData data = storage.computeIfAbsent(TickrateSavedData::load, TickrateSavedData::new, NAME);
+        return data;
     }
-
+    
     public static TickrateSavedData load(CompoundTag nbt) 
     {
     	TickrateSavedData data = new TickrateSavedData();
-    	data.currentTimer.setTickrate(nbt.getFloat("DimensionTickrate"));
-    	ListTag areas = nbt.getList("Areas", 10);
+    	ListTag areas = nbt.getList("TickrateAreas", 10);
 		for(int i = 0; i < areas.size(); ++i)
 		{
 			CompoundTag tag = areas.getCompound(i);
-			data.addTickrateArea(new AABB(tag.getDouble("MinX"), tag.getDouble("MinY"), tag.getDouble("MinZ"), tag.getDouble("MaxX"), tag.getDouble("MaxY"), tag.getDouble("MaxZ")), tag.getFloat("AreaTickrate"));
+			data.addArea(TickrateArea.read(tag));
 		}
+		data.setDimensionTickrate(TickrateDimension.read(nbt));
         return data;
     }
 	
@@ -63,55 +52,42 @@ public class TickrateSavedData extends SavedData
 		this.areas.forEach(t -> 
 		{
 			CompoundTag tag = new CompoundTag();
-			AABB aabb = t.getLeft();
-			tag.putDouble("MinX", aabb.minX);
-			tag.putDouble("MinY", aabb.minY);
-			tag.putDouble("MinZ", aabb.minZ);
-			tag.putDouble("MaxX", aabb.maxX);
-			tag.putDouble("MaxY", aabb.maxY);
-			tag.putDouble("MaxZ", aabb.maxZ);
-			tag.putFloat("AreaTickrate", t.getRight());
+			t.write(tag);
 			areas.add(tag);
 		});
-		nbt.putFloat("DimensionTickrate", this.currentTimer.tickrate);
-		nbt.put("Areas", areas);
+		nbt.put("TickrateAreas", areas);
+		this.dimension.write(nbt);
 		return nbt;
 	}
 	
-	public void setTickrate(float tickrate)
+	public void setDimensionTickrate(TickrateDimension dimension)
 	{
-		this.currentTimer.setTickrate(tickrate);
+		this.dimension = dimension;
 		this.setDirty();
+    	TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(this.dimension));
 	}
 	
-	public CustomTimer getTimer()
+	public TickrateDimension getDimensionTickrate()
 	{
-		return this.currentTimer;
+		return this.dimension;
 	}
 	
-	public void addTickrateArea(AABB aabb, float tickrate)
+	public void addArea(TickrateArea area)
 	{
-		if(tickrate == 20)
-		{
-			for(Iterator<Pair<AABB, Float>> itr = this.areas.iterator(); itr.hasNext();)
-			{
-				Pair<AABB, Float> next = itr.next();
-				if(next.getLeft().equals(aabb))
-				{
-					itr.remove();
-				}
-			}
-			this.setDirty();
-		}
-		else
-		{
-			Pair<AABB, Float> pair = Pair.of(aabb, tickrate);
-			this.areas.add(pair);
-			this.setDirty();
-		}
+	    this.areas.removeIf(t -> t.aabb.equals(area.aabb));
+        this.areas.add(area);
+		this.setDirty();
+    	TickrateNetwork.sendToAll(new AddTickrateAreaPacket(area));
 	}
 	
-	public List<Pair<AABB, Float>> getTickrateAreas()
+	public void removeArea(TickrateArea area)
+	{
+		this.areas.removeIf(t -> t.aabb.equals(area.aabb));
+		this.setDirty();
+    	TickrateNetwork.sendToAll(new RemoveTickrateAreaPacket(area));
+	}
+	
+	public List<TickrateArea> getAreas()
 	{
 		return this.areas;
 	}

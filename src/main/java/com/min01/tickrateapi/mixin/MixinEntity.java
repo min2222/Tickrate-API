@@ -7,26 +7,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
-import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.world.entity.Entity;
 
 @Mixin(Entity.class)
-public class MixinEntity 
+public class MixinEntity
 {
 	@Inject(method = "tick", at = @At("TAIL"))
-	private void tick(CallbackInfo ci) 
+	private void tickrateapi$tick(CallbackInfo ci) 
 	{
-		Entity entity = Entity.class.cast(this);
-		if(TickrateUtil.getTickrate(entity) > 1)
-		{
-			entity.getCapability(TickrateCapabilityImpl.TICKRATE).ifPresent(ITickrateCapability::tick);
-		}
-		
-		float tickrate = TickrateUtil.getArea(entity.level.dimension(), entity.getBoundingBox(), entity.position());
-		if(tickrate != 20.0F || TickrateUtil.hasDimensionTimer(entity.level.dimension()))
-		{
-			TickrateUtil.setTickrate(entity, tickrate);
-		}
+		Entity entity = (Entity) (Object) this;
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	cap.tick(entity);
 	}
 }

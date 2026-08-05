@@ -1,7 +1,5 @@
 package com.min01.tickrateapi.mixin;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 
@@ -10,11 +8,15 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import com.min01.tickrateapi.util.CustomTimer;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.min01.tickrateapi.api.EntityTickEvent;
+import com.min01.tickrateapi.api.TickrateDimension;
+import com.min01.tickrateapi.api.TickrateTimer;
+import com.min01.tickrateapi.capabilities.ITickrateCapability;
+import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.CrashReport;
@@ -25,13 +27,13 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.WaterAnimal;
-import net.minecraft.world.entity.npc.Npc;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.entity.PartEntity;
+import net.minecraftforge.event.ForgeEventFactory;
 
 @Mixin(MinecraftServer.class)
-public class MixinMinecraftServer 
+public class MixinMinecraftServer
 {
 	@Shadow
 	@Final
@@ -45,7 +47,7 @@ public class MixinMinecraftServer
 	
 	@Shadow
 	private int tickCount;
-
+	
 	@Shadow(remap = false)
 	private int worldArrayMarker = 0;
 	
@@ -55,132 +57,122 @@ public class MixinMinecraftServer
 	@Shadow(remap = false)
 	private ServerLevel[] worldArray;
 	
-    @Inject(method = "runServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;tickServer(Ljava/util/function/BooleanSupplier;)V", shift = At.Shift.AFTER))
-	private void afterTickServer(CallbackInfo ci) 
-	{
-		for(ServerLevel level : this.levels.values())
-		{
-			if(!TickrateUtil.hasDimensionTimer(level.dimension()))
-			{
-				continue;
-			}
-	    	this.tickServerLevel(level);
-	    	
-            List<Entity> excluded = TickrateUtil.EXCLUDED.getOrDefault(level.dimension(), new ArrayList<>());
-            for(Entity entity : excluded)
-            {
-            	if(!entity.isRemoved())
-            	{
-            		if(this.shouldDiscardEntity(entity)) 
-            		{
-            			entity.discard();
-            		} 
-            		else 
-            		{
-            			entity.checkDespawn();
-            			if(level.getChunkSource().chunkMap.getDistanceManager().inEntityTickingRange(entity.chunkPosition().toLong())) 
-            			{
-            				Entity vehicle = entity.getVehicle();
-            				if(vehicle != null) 
-            				{
-            					if(!vehicle.isRemoved() && vehicle.hasPassenger(entity)) 
-            					{
-            						return;
-            					}
-            					entity.stopRiding();
-            				}
-            				if(!entity.isRemoved() && !(entity instanceof net.minecraftforge.entity.PartEntity))
-            				{
-            					level.guardEntityTick(level::tickNonPassenger, entity);
-            				}
-            			}
-            		}
-            	}
-            }
-		}
-	}
-    
-    @Unique
-    private boolean shouldDiscardEntity(Entity pEntity)
-    {
-    	MinecraftServer server = MinecraftServer.class.cast(this);
-    	if(server.isSpawningAnimals() || !(pEntity instanceof Animal) && !(pEntity instanceof WaterAnimal)) 
-    	{
-    		return !server.areNpcsEnabled() && pEntity instanceof Npc;
-    	} 
-    	else
-    	{
-    		return true;
-    	}
-    }
-
-	@Inject(method = "getWorldArray", at = @At("HEAD"), cancellable = true, remap = false)
-	private void getWorldArray(CallbackInfoReturnable<ServerLevel[]> cir)
+	@ModifyReturnValue(method = "getWorldArray", at = @At("RETURN"), remap = false)
+	private ServerLevel[] tickrateapi$getWorldArray(ServerLevel[] original)
 	{
 		if(this.worldArrayMarker == this.worldArrayLast && this.worldArray != null)
 		{
-			cir.setReturnValue(this.worldArray);
+			return this.worldArray;
 		}
-		this.worldArray = this.levels.values().stream().filter(t -> !TickrateUtil.hasDimensionTimer(t.dimension())).toArray(x -> new ServerLevel[x]);
+		this.worldArray = this.levels.values().stream().filter(t -> !TickrateUtil.hasDimensionTimer(t)).toArray(x -> new ServerLevel[x]);
 		this.worldArrayLast = this.worldArrayMarker;
-		cir.setReturnValue(this.worldArray);
+		return this.worldArray;
+	}
+	
+	@WrapMethod(method = "tickServer")
+	private void tickrateapi$tickServer(BooleanSupplier pHasTimeLeft, Operation<Void> original)
+	{
+		original.call(pHasTimeLeft);
+		this.tickrateapi$tickServerLevel();
 	}
 	
 	@Unique
-	private void tickServerLevel(ServerLevel serverLevel)
+	private void tickrateapi$tickServerLevel()
 	{
-		CustomTimer dimensionTimer = TickrateUtil.getDimensionTimer(serverLevel.dimension());
+		for(ServerLevel serverLevel : this.levels.values())
+		{
+			ProfilerFiller profilerfiller = serverLevel.getProfiler();
+			serverLevel.entityTickList.forEach(t -> 
+			{
+				if(!t.isRemoved())
+				{
+					MinecraftForge.EVENT_BUS.post(new EntityTickEvent(t));
+					//fix entity doesn't receive update when tickrate is 0;
+			    	ITickrateCapability cap = t.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+			    	cap.tick(t);
+			    	
+					if(TickrateUtil.hasTimer(t))
+					{
+						if(serverLevel.shouldDiscardEntity(t)) 
+						{
+							t.discard();
+						}
+						else 
+						{
+							profilerfiller.push("checkDespawn");
+							t.checkDespawn();
+							profilerfiller.pop();
+							if(serverLevel.getChunkSource().chunkMap.getDistanceManager().inEntityTickingRange(t.chunkPosition().toLong())) 
+							{
+								Entity entity = t.getVehicle();
+								if(entity != null)
+								{
+									if(!entity.isRemoved() && entity.hasPassenger(t))
+									{
+										return;
+									}
+									t.stopRiding();
+								}
+								profilerfiller.push("tick");
+								if(!t.isRemoved() && !(t instanceof PartEntity))
+								{
+									TickrateTimer timer = TickrateUtil.getTimer(t);
+									timer.tickServer(() -> 
+									{
+								        TickrateUtil.guardEntityTick(serverLevel::tickNonPassenger, t);
+									});
+								}
+								profilerfiller.pop();
+							}
+						}
+					}
+				}
+			});
+			
+			if(!TickrateUtil.hasDimensionTimer(serverLevel))
+			{
+				continue;
+			}
+			
+			TickrateDimension dimension = TickrateUtil.getDimensionTickrate(serverLevel);
+			TickrateTimer timer = dimension.timer;
+			
+			timer.tickServer(() -> 
+			{
+	    		BooleanSupplier pHasTimeLeft = timer::haveTime;
+	    		
+	    		long tickStart = Util.getNanos();
+	    		this.profiler.push(() -> 
+	    		{
+	    			return serverLevel + " " + serverLevel.dimension().location();
+	    		});
+	    		
+	    		if(this.tickCount % 20 == 0)
+	    		{
+	    			this.profiler.push("timeSync");
+	    			this.synchronizeTime(serverLevel);
+	    			this.profiler.pop();
+	    		}
 
-	    long currentTime = Util.getMillis();
-		long tickrate = (long) (1000L / dimensionTimer.tickrate);
-
-        long i = currentTime - dimensionTimer.nextTickTime;
-        if(i > 2000L && dimensionTimer.nextTickTime - dimensionTimer.lastOverloadWarning >= 15000L)
-        {
-        	long j = i / tickrate;
-        	dimensionTimer.nextTickTime += j * tickrate;
-        	dimensionTimer.lastOverloadWarning = dimensionTimer.nextTickTime;
-        }
-        
-        while(currentTime >= dimensionTimer.nextTickTime) 
-        {
-    		dimensionTimer.nextTickTime += tickrate;
-    		BooleanSupplier pHasTimeLeft = dimensionTimer::haveTime;
-    		
-    		long tickStart = Util.getNanos();
-    		this.profiler.push(() -> 
-    		{
-    			return serverLevel + " " + serverLevel.dimension().location();
-    		});
-    		
-    		if(this.tickCount % 20 == 0)
-    		{
-    			this.profiler.push("timeSync");
-    			this.synchronizeTime(serverLevel);
-    			this.profiler.pop();
-    		}
-
-    		this.profiler.push("tick");
-    		net.minecraftforge.event.ForgeEventFactory.onPreLevelTick(serverLevel, pHasTimeLeft);
-             
-    		try 
-    		{
-    			serverLevel.tick(pHasTimeLeft);
-    		}
-    		catch(Throwable throwable)
-    		{
-    			CrashReport crashreport = CrashReport.forThrowable(throwable, "Exception ticking world");
-    			serverLevel.fillReportDetails(crashreport);
-    			throw new ReportedException(crashreport);
-    		}
-    		net.minecraftforge.event.ForgeEventFactory.onPostLevelTick(serverLevel, pHasTimeLeft);
-    		
-    		this.profiler.pop();
-    		this.perWorldTickTimes.computeIfAbsent(serverLevel.dimension(), k -> new long[100])[this.tickCount % 100] = Util.getNanos() - tickStart;
-        }
-        
-        dimensionTimer.mayHaveDelayedTasks = true;
-        dimensionTimer.delayedTasksMaxNextTickTime = Math.max(Util.getMillis() + tickrate, dimensionTimer.nextTickTime);
+	    		this.profiler.push("tick");
+	    		ForgeEventFactory.onPreLevelTick(serverLevel, pHasTimeLeft);
+	             
+	    		try 
+	    		{
+	    			serverLevel.tick(pHasTimeLeft);
+	    		}
+	    		catch(Throwable throwable)
+	    		{
+	    			CrashReport crashreport = CrashReport.forThrowable(throwable, "Exception ticking world");
+	    			serverLevel.fillReportDetails(crashreport);
+	    			throw new ReportedException(crashreport);
+	    		}
+	    		ForgeEventFactory.onPostLevelTick(serverLevel, pHasTimeLeft);
+	    		
+	    		this.profiler.pop();
+	    		this.perWorldTickTimes.computeIfAbsent(serverLevel.dimension(), k -> new long[100])[this.tickCount % 100] = Util.getNanos() - tickStart;
+			});
+		}
 	}
 	
 	@Shadow

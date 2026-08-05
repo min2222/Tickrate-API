@@ -7,7 +7,6 @@ public class TickrateCapabilities
 {
 	public static void onAttachEntityCapabilities(AttachCapabilitiesEvent<Entity> event)
 	{
-    	Entity entity = event.getObject();
-		event.addCapability(TickrateCapabilityImpl.ID, new TickrateCapabilityImpl(entity));
+		event.addCapability(TickrateCapabilityImpl.ID, new TickrateCapabilityImpl());
 	}
 }

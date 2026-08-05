@@ -1,43 +1,41 @@
 package com.min01.tickrateapi.capabilities;
 
 import com.min01.tickrateapi.TickrateAPI;
-import com.min01.tickrateapi.util.CustomTimer;
+import com.min01.tickrateapi.api.TickrateTimer;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
 import net.minecraftforge.common.capabilities.AutoRegisterCapability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 
 @AutoRegisterCapability
 public interface ITickrateCapability extends ICapabilitySerializable<CompoundTag>
 {
-	ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TickrateAPI.MODID, "entity_tickrate");
+	ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TickrateAPI.MODID, "tickrate");
 
+	void tick(Entity entity);
+	
 	void setBaseTickrate(float tickrate);
 	
 	void setTickrate(float tickrate);
 	
-	float getTickrate();
+	void setPriority(int priority);
 	
 	void resetTickrate();
-	
+
+	void sync(int priority, float baseTickrate, float currentTickrate);
+
 	boolean hasTimer();
 	
-	void tick();
+	int getPriority();
 
-	CustomTimer getBaseTimer();
+	float getBaseTickrate();
 	
-	CustomTimer getCurrentTimer();
-	
-	void exclude(boolean flag);
-	
-	boolean isExcluded();
-	
-	void excludeSubEntities(boolean flag);
+	float getTickrate();
 
-	void changeSubEntities(boolean flag);
+	TickrateTimer getBaseTimer();
 	
-	boolean shouldExcludeSubEntities();
+	TickrateTimer getTimer();
 	
-	boolean shouldChangeSubEntities();
 }

@@ -3,9 +3,11 @@ package com.min01.tickrateapi.capabilities;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import com.min01.tickrateapi.api.TickrateData;
+import com.min01.tickrateapi.api.TickrateTimer;
 import com.min01.tickrateapi.network.TickrateNetwork;
 import com.min01.tickrateapi.network.UpdateTickratePacket;
-import com.min01.tickrateapi.util.CustomTimer;
+import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -20,57 +22,93 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 {
 	public static final Capability<ITickrateCapability> TICKRATE = CapabilityManager.get(new CapabilityToken<>() {});
 	
-	private CustomTimer baseTimer = new CustomTimer(20.0F, 0L);
-	private CustomTimer currentTimer = new CustomTimer(20.0F, 0L);
+	private final TickrateTimer baseTimer = TickrateTimer.createDefault();
+	private final TickrateTimer currentTimer = TickrateTimer.createDefault();
 	
-	private final Entity entity;
-	private boolean excluded;
-	private boolean excludeSubEntities;
-	private boolean shouldChangeSubEntities = true;
-
-	public TickrateCapabilityImpl(Entity entity)
-	{
-		this.entity = entity;
-	}
+	private boolean isUpdating;
+	private int priority = 1000;
 	
 	@Override
 	public CompoundTag serializeNBT() 
 	{
 		CompoundTag nbt = new CompoundTag();
-		nbt.putBoolean("ChangeSubEntities", this.shouldChangeSubEntities);
-		nbt.putBoolean("ExcludeSubEntities", this.excludeSubEntities);
-		nbt.putBoolean("Excluded", this.excluded);
-		nbt.putFloat("BaseTickrate", this.baseTimer.tickrate);
+		nbt.putFloat("BaseTickrate", this.getBaseTickrate());
+		nbt.putInt("Priority", this.getPriority());
 		return nbt;
 	}
 
 	@Override
 	public void deserializeNBT(CompoundTag nbt)
 	{
-		this.exclude(nbt.getBoolean("Excluded"));
-		this.excludeSubEntities(nbt.getBoolean("ExcludeSubEntities"));
-		this.changeSubEntities(nbt.getBoolean("ChangeSubEntities"));
 		this.setBaseTickrate(nbt.getFloat("BaseTickrate"));
+		this.setPriority(nbt.getInt("Priority"));
+	}
+
+	@Override
+	public void tick(Entity entity) 
+	{
+		int prevPriority = this.getPriority();
+		float prevBaseTickrate = this.getBaseTickrate();
+		float prevTickrate = this.getTickrate();
+		
+		this.setTickrate(this.getBaseTickrate());
+		this.isUpdating = true;
+		
+		try
+		{
+			if(this.isUpdating)
+			{
+				TickrateData data = TickrateUtil.findHighestPriorityTickrate(entity);
+				if(data != null && data.getPriority() > this.getPriority())
+				{
+				    this.setTickrate(data.getTickrate());
+				}
+			}
+		}
+        finally
+        {
+        	this.isUpdating = false;
+        }
+
+		if(this.getPriority() != prevPriority || this.getBaseTickrate() != prevBaseTickrate || this.getTickrate() != prevTickrate || entity.tickCount <= 2)
+		{
+			if(!entity.level.isClientSide)
+			{
+				TickrateNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), new UpdateTickratePacket(entity.getUUID(), this.getPriority(), this.getBaseTickrate(), this.getTickrate()));
+			}
+		}
 	}
 
 	@Override
 	public void setBaseTickrate(float tickrate) 
 	{
 		this.baseTimer.setTickrate(tickrate);
-    	this.sendUpdatePacket();
 	}
 	
 	@Override
 	public void setTickrate(float tickrate) 
 	{
 		this.currentTimer.setTickrate(tickrate);
-    	this.sendUpdatePacket();
 	}
 	
 	@Override
-	public float getTickrate() 
+	public void setPriority(int priority) 
 	{
-		return this.currentTimer.tickrate;
+		this.priority = priority;
+	}
+	
+	@Override
+	public void resetTickrate()
+	{
+		this.baseTimer.resetTickrate();
+	}
+	
+	@Override
+	public void sync(int priority, float baseTickrate, float currentTickrate)
+	{
+		this.setPriority(priority);
+		this.setBaseTickrate(baseTickrate);
+		this.setTickrate(currentTickrate);
 	}
 	
 	@Override
@@ -80,74 +118,33 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	}
 	
 	@Override
-	public void resetTickrate()
+	public int getPriority()
 	{
-		this.baseTimer.setTickrate(20.0F);
-    	this.sendUpdatePacket();
+		return this.priority;
 	}
-
+	
 	@Override
-	public void tick() 
+	public float getBaseTickrate()
 	{
-		this.setTickrate(this.baseTimer.tickrate);
+		return this.baseTimer.tickrate;
 	}
-
+	
 	@Override
-	public CustomTimer getBaseTimer() 
+	public float getTickrate() 
+	{
+		return this.currentTimer.tickrate;
+	}
+	
+	@Override
+	public TickrateTimer getBaseTimer() 
 	{
 		return this.baseTimer;
 	}
 	
 	@Override
-	public CustomTimer getCurrentTimer() 
+	public TickrateTimer getTimer() 
 	{
 		return this.currentTimer;
-	}
-
-	@Override
-	public void exclude(boolean flag) 
-	{
-		this.excluded = flag;
-	}
-	
-	@Override
-	public boolean isExcluded() 
-	{
-		return this.excluded;
-	}
-
-	@Override
-	public void excludeSubEntities(boolean flag)
-	{
-		this.excludeSubEntities = flag;
-    	this.sendUpdatePacket();
-	}
-	
-	@Override
-	public void changeSubEntities(boolean flag)
-	{
-		this.shouldChangeSubEntities = flag;
-    	this.sendUpdatePacket();
-	}
-
-	@Override
-	public boolean shouldExcludeSubEntities()
-	{
-		return this.excludeSubEntities;
-	}
-	
-	@Override
-	public boolean shouldChangeSubEntities() 
-	{
-		return this.shouldChangeSubEntities;
-	}
-	
-	private void sendUpdatePacket() 
-	{
-		if(!this.entity.level.isClientSide)
-		{
-			TickrateNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> this.entity), new UpdateTickratePacket(this.entity.getUUID(), this.excluded, this.excludeSubEntities, this.shouldChangeSubEntities, this.baseTimer.tickrate, this.getTickrate()));
-		}
 	}
 	
 	@Override

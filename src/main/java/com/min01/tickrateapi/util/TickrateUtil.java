@@ -1,308 +1,248 @@
 package com.min01.tickrateapi.util;
 
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.commons.lang3.tuple.Pair;
+import java.util.function.Consumer;
 
 import com.min01.tickrateapi.TickrateAPI;
+import com.min01.tickrateapi.api.TickrateArea;
+import com.min01.tickrateapi.api.TickrateData;
+import com.min01.tickrateapi.api.TickrateDimension;
+import com.min01.tickrateapi.api.TickrateTimer;
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
-import com.min01.tickrateapi.command.SetTickrateCommand;
+import com.min01.tickrateapi.command.TickrateCommand;
+import com.min01.tickrateapi.network.AddTickrateAreaPacket;
 import com.min01.tickrateapi.network.TickrateNetwork;
-import com.min01.tickrateapi.network.UpdateAreaTickratePacket;
 import com.min01.tickrateapi.network.UpdateDimensionTickratePacket;
+import com.min01.tickrateapi.world.TickrateClientData;
 import com.min01.tickrateapi.world.TickrateSavedData;
+import com.mojang.logging.LogUtils;
 
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.CrashReport;
+import net.minecraft.CrashReportCategory;
+import net.minecraft.ReportedException;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.entity.LevelEntityGetter;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.ForgeConfig;
+import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.TickEvent.LevelTickEvent;
-import net.minecraftforge.event.TickEvent.Phase;
-import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber.Bus;
-import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import net.minecraftforge.server.timings.TimeTracker;
 
 @Mod.EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.FORGE)
 public class TickrateUtil 
 {
-	public static final Method GET_ENTITY = ObfuscationReflectionHelper.findMethod(Level.class, "m_142646_");
-	public static final Map<ResourceKey<Level>, CustomTimer> LEVEL_MAP = new HashMap<>();
-	public static final List<Pair<AABB, Float>> AABB_LIST = new ArrayList<>();
-    public static final Map<ResourceKey<Level>, List<Entity>> EXCLUDED = new ConcurrentHashMap<>();
-	
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event)
     {
-    	SetTickrateCommand.register(event.getDispatcher());
+    	TickrateCommand.register(event.getDispatcher());
     }
     
 	@SubscribeEvent
-	public static void onLevelTickEvent(LevelTickEvent event)
+	public static void onPlayerLoggedIn(PlayerLoggedInEvent event)
 	{
-		Level level = event.level;
-		if(event.phase == Phase.START)
+		Player player = event.getEntity();
+		Level level = player.level;
+		if(!level.isClientSide)
 		{
-			if(!level.isClientSide && hasDimensionTimer(level.dimension()))
+			List<TickrateArea> areas = getTickrateAreas(level);
+			areas.forEach(t ->
 			{
-				List<Entity> list = EXCLUDED.computeIfAbsent(level.dimension(), t -> new ArrayList<>());
-				for(Entity entity : getAllEntities(level))
-				{
-					if(!isExcluded(entity))
-					{
-						continue;
-					}
-					if(hasTimer(entity))
-					{
-						continue;
-					}
-					if(!list.contains(entity))
-					{
-						list.add(entity);
-					}
-				}
-				list.removeIf(t -> !isExcluded(t) || hasTimer(t));
-				if(!EXCLUDED.isEmpty())
-				{
-					EXCLUDED.keySet().removeIf(t -> !hasDimensionTimer(t));
-				}
-			}
-			for(Entity entity : getAllEntities(level))
-			{
-				if(!level.isLoaded(entity.blockPosition()))
-				{
-					continue;
-				}
-				
-				if(getTickrate(entity) > 1)
-				{
-					continue;
-				}
-				
-				entity.getCapability(TickrateCapabilityImpl.TICKRATE).ifPresent(ITickrateCapability::tick);
-			}
+		    	TickrateNetwork.sendToAll(new AddTickrateAreaPacket(t));
+			});
+			TickrateDimension dimension = getDimensionTickrate(level);
+	    	TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(dimension));
 		}
 	}
 	
-	@SubscribeEvent
-	public static void onLevelLoadEvent(LevelEvent.Load event)
-	{
-		if(event.getLevel() instanceof Level level)
-		{
-			ResourceKey<Level> dimension = level.dimension();
-	    	TickrateSavedData data = TickrateSavedData.get(dimension);
-	    	if(data != null)
-	    	{
-	    		TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(dimension, data.getTimer().tickrate));
-	    		data.getTickrateAreas().forEach(t ->
-	    		{
-	        		TickrateNetwork.sendToAll(new UpdateAreaTickratePacket(t.getLeft(), t.getRight()));
-	    		});
-	    	}
-		}
-	}
-
-	public static boolean hasDimensionTimer(ResourceKey<Level> dimension)
-	{
-    	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		return data.getTimer().tickrate != 20.0F;
-    	}
-		return LEVEL_MAP.containsKey(dimension) && LEVEL_MAP.get(dimension).tickrate != 20.0F;
-	}
-	
-	public static CustomTimer getDimensionTimer(ResourceKey<Level> dimension)
-	{
-    	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		return data.getTimer();
-    	}
-		return LEVEL_MAP.get(dimension);
-	}
-    
-    public static boolean isExcluded(Entity entity)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	return cap.isExcluded();
-    }
-    
-    public static boolean shouldChangeSubEntities(Entity entity)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	return cap.shouldChangeSubEntities();
-    }
-    
-    public static boolean shouldExcludeSubEntities(Entity entity)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	return cap.shouldExcludeSubEntities();
-    }
-    
-    public static List<Pair<AABB, Float>> getTickrateAreas(ResourceKey<Level> dimension)
-    {
-    	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		return data.getTickrateAreas();
-    	}
-    	return AABB_LIST;
-    }
-    
-	public static void addTickrateArea(ResourceKey<Level> dimension, AABB aabb, float tickrate)
-	{
-    	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		data.addTickrateArea(aabb, tickrate);
-    		TickrateNetwork.sendToAll(new UpdateAreaTickratePacket(aabb, tickrate));
-    	}
-	}
-	
-	public static void setLevelTickrate(ResourceKey<Level> dimension, float tickrate)
-	{
-    	TickrateSavedData data = TickrateSavedData.get(dimension);
-    	if(data != null)
-    	{
-    		data.setTickrate(tickrate);
-    		TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(dimension, tickrate));
-    	}
-	}
-	
-    public static void includeEntity(Entity entity)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	cap.exclude(false);
-    }
-
-    public static void excludeEntity(Entity entity)
-    {
-    	excludeEntity(entity, true);
-    }
-
-    public static void excludeEntity(Entity entity, boolean excludeSubEntities)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	cap.exclude(true);
-    	cap.excludeSubEntities(excludeSubEntities);
-    }
-    
-    public static void changeSubEntities(Entity entity, boolean changeSubEntities)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	cap.changeSubEntities(changeSubEntities);
-    }
-    
     public static void setBaseTickrate(Entity entity, float tickrate)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
     	cap.setBaseTickrate(tickrate);
     }
-	
+    
     public static void setTickrate(Entity entity, float tickrate)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
     	cap.setTickrate(tickrate);
     }
     
-    public static float getTickrate(Entity entity)
+    public static void setPriority(Entity entity, int priority)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	return cap.getTickrate();
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	cap.setPriority(priority);
     }
     
     public static void resetTickrate(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
     	cap.resetTickrate();
     }
     
-    public static CustomTimer getBaseTimer(Entity entity)
+    public static int getPriority(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	return cap.getBaseTimer();
-    }
-    
-    public static CustomTimer getTimer(Entity entity)
-    {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-    	return cap.getCurrentTimer();
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getPriority();
     }
     
     public static boolean hasTimer(Entity entity)
     {
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
     	return cap.hasTimer();
     }
     
-    public static float getTickRateAt(ResourceKey<Level> dimension, Vec3 pos)
+    public static float getBaseTickrate(Entity entity)
     {
-		for(Iterator<Pair<AABB, Float>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
-		{
-			Pair<AABB, Float> pair = itr.next();
-			AABB aabb = pair.getLeft();
-			if(aabb.contains(pos))
-			{
-				return pair.getRight();
-			}
-		}
-		return 20.0F;
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getBaseTickrate();
     }
     
-    public static float getArea(ResourceKey<Level> dimension, AABB boundingBox, Vec3 pos)
+    public static float getTickrate(Entity entity)
     {
-		for(Iterator<Pair<AABB, Float>> itr = getTickrateAreas(dimension).iterator(); itr.hasNext();)
-		{
-			Pair<AABB, Float> pair = itr.next();
-			AABB aabb = pair.getLeft();
-			if(aabb.intersects(boundingBox) || aabb.contains(pos))
-			{
-				return pair.getRight();
-			}
-		}
-		return 20.0F;
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getTickrate();
     }
     
-	@SuppressWarnings("unchecked")
-	public static <T extends Entity> Iterable<T> getAllEntities(Level level)
+    public static TickrateTimer getBaseTimer(Entity entity)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getBaseTimer();
+    }
+    
+    public static TickrateTimer getTimer(Entity entity)
+    {
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	return cap.getTimer();
+    }
+    
+	public static void addTickrateArea(Level level, TickrateArea area)
 	{
-		try 
-		{
-			LevelEntityGetter<T> entities = (LevelEntityGetter<T>) GET_ENTITY.invoke(level);
-			return entities.getAll();
+    	if(level instanceof ServerLevel serverLevel)
+    	{
+	    	TickrateSavedData data = TickrateSavedData.get(serverLevel);
+	    	data.addArea(area);
 		}
-		catch (Exception e) 
-		{
-			e.printStackTrace();
+	}
+	
+	public static void removeTickrateArea(Level level, TickrateArea area)
+	{
+    	if(level instanceof ServerLevel serverLevel)
+    	{
+	    	TickrateSavedData data = TickrateSavedData.get(serverLevel);
+	    	data.removeArea(area);
 		}
-		return null;
 	}
     
+    public static List<TickrateArea> getTickrateAreas(Level level)
+    {
+    	if(level instanceof ServerLevel serverLevel)
+    	{
+        	TickrateSavedData data = TickrateSavedData.get(serverLevel);
+        	return data.getAreas();
+    	}
+    	return TickrateClientData.AREAS;
+    }
+	
+	public static void setDimensionTickrate(Level level, float tickrate, int priority)
+	{
+    	if(level instanceof ServerLevel serverLevel)
+    	{
+	    	TickrateSavedData data = TickrateSavedData.get(serverLevel);
+	    	TickrateDimension dimension = new TickrateDimension(level.dimension(), TickrateTimer.createWithTickrate(tickrate), priority);
+	    	data.setDimensionTickrate(dimension);
+		}
+	}
+	
+    public static TickrateDimension getDimensionTickrate(Level level)
+    {
+    	if(level instanceof ServerLevel serverLevel)
+    	{
+        	TickrateSavedData data = TickrateSavedData.get(serverLevel);
+        	return data.dimension;
+    	}
+    	return TickrateClientData.getDimensionTickrate(level.dimension());
+    }
+	
+	public static boolean hasDimensionTimer(Level level)
+	{
+    	TickrateDimension dimension = getDimensionTickrate(level);
+    	return dimension != null && dimension.getTickrate() != 20.0F;
+	}
+	
+	public static TickrateData findHighestPriorityTickrate(Entity entity)
+	{
+		Level level = entity.level;
+		TickrateData data = null;
+		
+		int priority = Integer.MIN_VALUE;
+
+		if(hasDimensionTimer(level)) 
+		{
+			data = getDimensionTickrate(level);
+		}
+
+		List<TickrateArea> areas = getTickrateAreas(level);
+		for(TickrateArea area : areas)
+		{
+		    if(area.dimension.equals(level.dimension()) && area.aabb.intersects(entity.getBoundingBox()))
+		    {
+		        if(area.getPriority() >= priority) 
+		        {
+		        	data = area;
+		        }
+		    }
+		}
+		return data;
+	}
+    
+	public static void getClientLevel(Consumer<Level> consumer)
+	{
+		LogicalSidedProvider.CLIENTWORLD.get(LogicalSide.CLIENT).filter(ClientLevel.class::isInstance).ifPresent(level -> 
+		{
+			consumer.accept(level);
+		});
+	}
+	
 	@SuppressWarnings("unchecked")
 	public static <T extends Entity> T getEntityByUUID(Level level, UUID uuid)
 	{
-		try 
+		return (T) level.getEntities().get(uuid);
+	}
+	
+	//copied from Level
+	public static <T extends Entity> void guardEntityTick(Consumer<T> pConsumerEntity, T pEntity)
+	{
+		try
 		{
-			LevelEntityGetter<T> entities = (LevelEntityGetter<T>) GET_ENTITY.invoke(level);
-			return (T) entities.get(uuid);
-		}
-		catch (Exception e) 
+			TimeTracker.ENTITY_UPDATE.trackStart(pEntity);
+			pConsumerEntity.accept(pEntity);
+		} 
+		catch(Throwable throwable)
 		{
-			e.printStackTrace();
+			CrashReport crashreport = CrashReport.forThrowable(throwable, "Ticking entity");
+			CrashReportCategory crashreportcategory = crashreport.addCategory("Entity being ticked");
+			pEntity.fillCrashReportCategory(crashreportcategory);
+			if(ForgeConfig.SERVER.removeErroringEntities.get())
+			{
+				LogUtils.getLogger().error("{}", crashreport.getFriendlyReport());
+				pEntity.discard();
+			} 
+			else
+			{
+				throw new ReportedException(crashreport);
+			}
+		} 
+		finally
+		{
+			TimeTracker.ENTITY_UPDATE.trackEnd(pEntity);
 		}
-		return null;
 	}
 }

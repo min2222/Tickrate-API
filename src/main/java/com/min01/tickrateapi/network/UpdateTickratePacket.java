@@ -7,42 +7,34 @@ import com.min01.tickrateapi.capabilities.ITickrateCapability;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.util.TickrateUtil;
 
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.network.NetworkEvent;
 
 public class UpdateTickratePacket 
 {
 	private final UUID uuid;
-	private final boolean excluded;
-	private final boolean excludeSubEntities;
-	private final boolean shouldChangeSubEntities;
+	private final int priority;
 	private final float baseTickrate;
 	private final float currentTickrate;
 	
-	public UpdateTickratePacket(UUID uuid, boolean excluded, boolean excludeSubEntities, boolean changeSubEntities, float baseTickrate, float currentTickrate) 
+	public UpdateTickratePacket(UUID uuid, int priority, float baseTickrate, float currentTickrate) 
 	{
 		this.uuid = uuid;
-		this.excluded = excluded;
-		this.excludeSubEntities = excludeSubEntities;
-		this.shouldChangeSubEntities = changeSubEntities;
+		this.priority = priority;
 		this.baseTickrate = baseTickrate;
 		this.currentTickrate = baseTickrate;
 	}
 
 	public static UpdateTickratePacket read(FriendlyByteBuf buf)
 	{
-		return new UpdateTickratePacket(buf.readUUID(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readFloat(), buf.readFloat());
+		return new UpdateTickratePacket(buf.readUUID(), buf.readInt(), buf.readFloat(), buf.readFloat());
 	}
 
 	public void write(FriendlyByteBuf buf)
 	{
 		buf.writeUUID(this.uuid);
-		buf.writeBoolean(this.excluded);
-		buf.writeBoolean(this.excludeSubEntities);
-		buf.writeBoolean(this.shouldChangeSubEntities);
+		buf.writeInt(this.priority);
 		buf.writeFloat(this.baseTickrate);
 		buf.writeFloat(this.currentTickrate);
 	}
@@ -53,15 +45,11 @@ public class UpdateTickratePacket
 		{
 			if(ctx.get().getDirection().getReceptionSide().isClient())
 			{
-				LogicalSidedProvider.CLIENTWORLD.get(ctx.get().getDirection().getReceptionSide()).filter(ClientLevel.class::isInstance).ifPresent(t -> 
+				TickrateUtil.getClientLevel(t -> 
 				{
 					Entity entity = TickrateUtil.getEntityByUUID(t, message.uuid);
-					ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl(entity));
-					cap.exclude(message.excluded);
-					cap.excludeSubEntities(message.excludeSubEntities);
-					cap.changeSubEntities(message.shouldChangeSubEntities);
-					cap.setBaseTickrate(message.baseTickrate);
-					cap.setTickrate(message.currentTickrate);
+					ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+					cap.sync(message.priority, message.baseTickrate, message.currentTickrate);
 				});
 			}
 		});
