@@ -51,7 +51,7 @@ public class MixinMinecraft
 	@WrapOperation(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/profiling/ProfilerFiller;pop()V", ordinal = 1))
 	private void tickrateapi$tickEntities(ProfilerFiller instance, Operation<Void> original)
 	{
-		if(this.level != null)
+		if(this.level != null && !this.pause)
 		{
 			this.level.tickingEntities.forEach(entity -> 
 			{
