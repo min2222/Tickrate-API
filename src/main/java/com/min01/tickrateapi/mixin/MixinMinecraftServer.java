@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.min01.tickrateapi.api.EntityTickEvent;
 import com.min01.tickrateapi.api.TickrateDimension;
 import com.min01.tickrateapi.api.TickrateTimer;
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
@@ -28,7 +27,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.entity.PartEntity;
 import net.minecraftforge.event.ForgeEventFactory;
 
@@ -86,7 +84,6 @@ public class MixinMinecraftServer
 			{
 				if(!t.isRemoved())
 				{
-					MinecraftForge.EVENT_BUS.post(new EntityTickEvent(t));
 					//fix entity doesn't receive update when tickrate is 0;
 			    	ITickrateCapability cap = t.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
 			    	cap.tick(t);

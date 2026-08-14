@@ -5,6 +5,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import com.min01.tickrateapi.TickrateAPI;
+import com.min01.tickrateapi.api.EntityTickEvent;
 import com.min01.tickrateapi.api.TickrateArea;
 import com.min01.tickrateapi.api.TickrateData;
 import com.min01.tickrateapi.api.TickrateDimension;
@@ -28,6 +29,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeConfig;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
@@ -222,6 +224,7 @@ public class TickrateUtil
 	{
 		try
 		{
+			MinecraftForge.EVENT_BUS.post(new EntityTickEvent(pEntity));
 			TimeTracker.ENTITY_UPDATE.trackStart(pEntity);
 			pConsumerEntity.accept(pEntity);
 		} 

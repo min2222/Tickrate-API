@@ -7,11 +7,13 @@ import org.spongepowered.asm.mixin.injection.At;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.min01.tickrateapi.api.EntityTickEvent;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.entity.EntityTickList;
+import net.minecraftforge.common.MinecraftForge;
 
 @Mixin(ServerLevel.class)
 public class MixinServerLevel 
@@ -23,6 +25,7 @@ public class MixinServerLevel
 		{
 	        if(!TickrateUtil.hasTimer(entity))
 	        {
+				MinecraftForge.EVENT_BUS.post(new EntityTickEvent(entity));
 	            pEntity.accept(entity); 
 	        }
 	    });
