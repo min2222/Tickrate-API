@@ -62,12 +62,19 @@ public class MixinMinecraft
 						TickrateTimer timer = TickrateUtil.getTimer(entity);
 						if(timer.tickrate <= 0)
 						{
-							MinecraftForge.EVENT_BUS.post(new EntityTickEvent(entity));
+							int j = TickrateUtil.DEFAULT_TIMER.advanceTime(Util.getMillis());
+							for(int k = 0; k < Math.min(10, j); ++k)
+							{
+								MinecraftForge.EVENT_BUS.post(new EntityTickEvent(entity));
+							}
 						}
-						int j = timer.advanceTime(Util.getMillis());
-						for(int k = 0; k < Math.min(10, j); ++k)
+						else
 						{
-							TickrateUtil.guardEntityTick(this.level::tickNonPassenger, entity);
+							int j = timer.advanceTime(Util.getMillis());
+							for(int k = 0; k < Math.min(10, j); ++k)
+							{
+								TickrateUtil.guardEntityTick(this.level::tickNonPassenger, entity);
+							}
 						}
 					}
 				}

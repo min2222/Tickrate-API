@@ -112,12 +112,18 @@ public class MixinMinecraftServer
 									TickrateTimer timer = TickrateUtil.getTimer(t);
 									if(timer.tickrate <= 0)
 									{
-										MinecraftForge.EVENT_BUS.post(new EntityTickEvent(t));
+										TickrateUtil.DEFAULT_TIMER.tickServer(() -> 
+										{
+											MinecraftForge.EVENT_BUS.post(new EntityTickEvent(t));
+										});
 									}
-									timer.tickServer(() -> 
+									else
 									{
-								        TickrateUtil.guardEntityTick(serverLevel::tickNonPassenger, t);
-									});
+										timer.tickServer(() -> 
+										{
+									        TickrateUtil.guardEntityTick(serverLevel::tickNonPassenger, t);
+										});
+									}
 								}
 								profilerfiller.pop();
 							}

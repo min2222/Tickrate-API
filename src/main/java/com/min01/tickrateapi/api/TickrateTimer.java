@@ -58,10 +58,7 @@ public class TickrateTimer
         while(Util.getMillis() >= this.nextTickTime)
         {
         	this.nextTickTime += tickrate;
-        	if(this.tickrate > 0)
-        	{
-            	run.run();
-        	}
+        	run.run();
         }
         
         this.mayHaveDelayedTasks = true;

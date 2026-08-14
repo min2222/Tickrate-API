@@ -41,6 +41,8 @@ import net.minecraftforge.server.timings.TimeTracker;
 @Mod.EventBusSubscriber(modid = TickrateAPI.MODID, bus = Bus.FORGE)
 public class TickrateUtil 
 {
+	public static final TickrateTimer DEFAULT_TIMER = TickrateTimer.createDefault();
+	
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event)
     {
