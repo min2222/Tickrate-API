@@ -29,7 +29,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeConfig;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
@@ -63,6 +62,14 @@ public class TickrateUtil
 			TickrateDimension dimension = getDimensionTickrate(level);
 	    	TickrateNetwork.sendToAll(new UpdateDimensionTickratePacket(dimension));
 		}
+	}
+	
+	@SubscribeEvent
+	public static void onEntityTick(EntityTickEvent event)
+	{
+		Entity entity = event.getEntity();
+    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
+    	cap.tick(entity);
 	}
 	
     public static void setBaseTickrate(Entity entity, float tickrate)
@@ -224,7 +231,6 @@ public class TickrateUtil
 	{
 		try
 		{
-			MinecraftForge.EVENT_BUS.post(new EntityTickEvent(pEntity));
 			TimeTracker.ENTITY_UPDATE.trackStart(pEntity);
 			pConsumerEntity.accept(pEntity);
 		} 

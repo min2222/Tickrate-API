@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.min01.tickrateapi.api.EntityTickEvent;
 import com.min01.tickrateapi.api.TickrateTimer;
 import com.min01.tickrateapi.util.TickrateUtil;
 
@@ -20,6 +21,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.common.MinecraftForge;
 
 @Mixin(Minecraft.class)
 public class MixinMinecraft
@@ -58,6 +60,10 @@ public class MixinMinecraft
 					if(!(entity instanceof Player) && !entity.isPassenger() && TickrateUtil.hasTimer(entity))
 					{
 						TickrateTimer timer = TickrateUtil.getTimer(entity);
+						if(timer.tickrate <= 0)
+						{
+							MinecraftForge.EVENT_BUS.post(new EntityTickEvent(entity));
+						}
 						int j = timer.advanceTime(Util.getMillis());
 						for(int k = 0; k < Math.min(10, j); ++k)
 						{

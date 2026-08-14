@@ -45,11 +45,9 @@ public class TickrateTimer
 	
 	public void tickServer(Runnable run)
 	{
-	    long currentTime = Util.getMillis();
-		long tickrate = (long) (1000L / this.tickrate);
-		tickrate = Math.min(tickrate, 1000L);
+		long tickrate = (long) Math.min(1000L / this.tickrate, 1000L);
 
-        long i = currentTime - this.nextTickTime;
+        long i = Util.getMillis() - this.nextTickTime;
         if(i > 2000L && this.nextTickTime - this.lastOverloadWarning >= 15000L)
         {
         	long j = i / tickrate;
@@ -57,10 +55,13 @@ public class TickrateTimer
         	this.lastOverloadWarning = this.nextTickTime;
         }
         
-        while(currentTime >= this.nextTickTime)
+        while(Util.getMillis() >= this.nextTickTime)
         {
         	this.nextTickTime += tickrate;
-        	run.run();
+        	if(this.tickrate > 0)
+        	{
+            	run.run();
+        	}
         }
         
         this.mayHaveDelayedTasks = true;

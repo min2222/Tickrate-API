@@ -70,7 +70,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
         	this.isUpdating = false;
         }
 
-		if(this.getPriority() != prevPriority || this.getBaseTickrate() != prevBaseTickrate || this.getTickrate() != prevTickrate || entity.tickCount <= 2)
+		if(this.getPriority() != prevPriority || this.getBaseTickrate() != prevBaseTickrate || this.getTickrate() != prevTickrate || entity.tickCount <= 4)
 		{
 			if(!entity.level.isClientSide)
 			{

@@ -5,10 +5,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import com.min01.tickrateapi.capabilities.ITickrateCapability;
-import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
+import com.min01.tickrateapi.api.EntityTickEvent;
 
 import net.minecraft.world.entity.Entity;
+import net.minecraftforge.common.MinecraftForge;
 
 @Mixin(Entity.class)
 public class MixinEntity
@@ -17,7 +17,6 @@ public class MixinEntity
 	private void tickrateapi$tick(CallbackInfo ci) 
 	{
 		Entity entity = (Entity) (Object) this;
-    	ITickrateCapability cap = entity.getCapability(TickrateCapabilityImpl.TICKRATE).orElse(new TickrateCapabilityImpl());
-    	cap.tick(entity);
+		MinecraftForge.EVENT_BUS.post(new EntityTickEvent(entity));
 	}
 }
