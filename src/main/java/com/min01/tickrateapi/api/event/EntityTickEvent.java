@@ -1,4 +1,4 @@
-package com.min01.tickrateapi.api;
+package com.min01.tickrateapi.api.event;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.event.entity.EntityEvent;

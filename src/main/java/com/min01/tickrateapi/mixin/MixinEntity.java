@@ -5,7 +5,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import com.min01.tickrateapi.api.EntityTickEvent;
+import com.min01.tickrateapi.api.event.EntityTickEvent;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.common.MinecraftForge;

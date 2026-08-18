@@ -5,11 +5,11 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import com.min01.tickrateapi.TickrateAPI;
-import com.min01.tickrateapi.api.EntityTickEvent;
 import com.min01.tickrateapi.api.TickrateArea;
 import com.min01.tickrateapi.api.TickrateData;
 import com.min01.tickrateapi.api.TickrateDimension;
 import com.min01.tickrateapi.api.TickrateTimer;
+import com.min01.tickrateapi.api.event.EntityTickEvent;
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.command.TickrateCommand;

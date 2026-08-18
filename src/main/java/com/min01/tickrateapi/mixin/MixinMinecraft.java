@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.min01.tickrateapi.api.EntityTickEvent;
 import com.min01.tickrateapi.api.TickrateTimer;
+import com.min01.tickrateapi.api.event.EntityTickEvent;
 import com.min01.tickrateapi.util.TickrateUtil;
 
 import net.minecraft.Util;

@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.min01.tickrateapi.api.TickrateData;
 import com.min01.tickrateapi.api.TickrateTimer;
+import com.min01.tickrateapi.api.event.TickrateSetEvent;
 import com.min01.tickrateapi.network.TickrateNetwork;
 import com.min01.tickrateapi.network.UpdateTickratePacket;
 import com.min01.tickrateapi.util.TickrateUtil;
@@ -12,6 +13,7 @@ import com.min01.tickrateapi.util.TickrateUtil;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
@@ -58,6 +60,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 		{
 			if(this.isUpdating)
 			{
+				MinecraftForge.EVENT_BUS.post(new TickrateSetEvent(entity));
 				TickrateData data = TickrateUtil.findHighestPriorityTickrate(entity);
 				if(data != null && data.getPriority() > this.getPriority())
 				{
