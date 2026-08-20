@@ -7,7 +7,8 @@
 	"mixins": [
 		"MixinEntity",
 		"MixinMinecraftServer",
-		"MixinServerLevel"
+		"MixinServerLevel",
+		"LevelInvoker"
 	],
 	"client": [
 		"MixinLevelRenderer",

@@ -13,6 +13,7 @@ import com.min01.tickrateapi.api.event.EntityTickEvent;
 import com.min01.tickrateapi.capabilities.ITickrateCapability;
 import com.min01.tickrateapi.capabilities.TickrateCapabilityImpl;
 import com.min01.tickrateapi.command.TickrateCommand;
+import com.min01.tickrateapi.mixin.LevelInvoker;
 import com.min01.tickrateapi.network.AddTickrateAreaPacket;
 import com.min01.tickrateapi.network.TickrateNetwork;
 import com.min01.tickrateapi.network.UpdateDimensionTickratePacket;
@@ -28,6 +29,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.entity.LevelEntityGetter;
 import net.minecraftforge.common.ForgeConfig;
 import net.minecraftforge.common.util.LogicalSidedProvider;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -222,10 +224,15 @@ public class TickrateUtil
 		});
 	}
 	
-	@SuppressWarnings("unchecked")
-	public static <T extends Entity> T getEntityByUUID(Level level, UUID uuid)
+	public static LevelEntityGetter<Entity> getEntityGetter(Level level)
 	{
-		return (T) level.getEntities().get(uuid);
+		return ((LevelInvoker) level).tickrateapi$invoke_getEntities();
+	}
+	
+	public static Entity getEntityByUUID(Level level, UUID uuid)
+	{
+		LevelEntityGetter<Entity> getter = getEntityGetter(level);
+		return getter.get(uuid);
 	}
 	
 	//copied from Level
