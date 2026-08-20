@@ -5,7 +5,6 @@ import org.jetbrains.annotations.Nullable;
 
 import com.min01.tickrateapi.api.TickrateData;
 import com.min01.tickrateapi.api.TickrateTimer;
-import com.min01.tickrateapi.api.event.TickrateSetEvent;
 import com.min01.tickrateapi.network.TickrateNetwork;
 import com.min01.tickrateapi.network.UpdateTickratePacket;
 import com.min01.tickrateapi.util.TickrateUtil;
@@ -13,7 +12,6 @@ import com.min01.tickrateapi.util.TickrateUtil;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
@@ -29,6 +27,7 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	
 	private boolean isUpdating;
 	private int priority = 1000;
+	private float delayedTickrate = -1;
 	
 	@Override
 	public CompoundTag serializeNBT() 
@@ -58,14 +57,15 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 		
 		try
 		{
-			if(this.isUpdating)
+			TickrateData data = TickrateUtil.findHighestPriorityTickrate(entity);
+			if(data != null && data.getPriority() > this.getPriority())
 			{
-				MinecraftForge.EVENT_BUS.post(new TickrateSetEvent(entity));
-				TickrateData data = TickrateUtil.findHighestPriorityTickrate(entity);
-				if(data != null && data.getPriority() > this.getPriority())
-				{
-				    this.setTickrate(data.getTickrate());
-				}
+			    this.setTickrate(data.getTickrate());
+			}
+			if(this.delayedTickrate != -1.0F)
+			{
+				this.setTickrate(this.delayedTickrate);
+				this.delayedTickrate = -1.0F;
 			}
 		}
         finally
@@ -91,7 +91,14 @@ public class TickrateCapabilityImpl implements ITickrateCapability
 	@Override
 	public void setTickrate(float tickrate) 
 	{
-		this.currentTimer.setTickrate(tickrate);
+		if(this.isUpdating)
+		{
+			this.currentTimer.setTickrate(tickrate);
+		}
+		else if(this.delayedTickrate == -1.0F)
+		{
+			this.delayedTickrate = tickrate;
+		}
 	}
 	
 	@Override
